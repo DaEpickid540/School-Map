@@ -1,0 +1,220 @@
+/* Mason Color Palette */
+:root {
+  --mason-green: #006747;
+  --mason-green-dark: #004f36;
+  --light-gray: #f4f4f4;
+  --dark-gray: #111;
+  --white: #ffffff;
+}
+
+/* Global */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: var(--light-gray);
+  color: var(--dark-gray);
+}
+
+/* Header */
+.topbar {
+  background: var(--mason-green);
+  color: var(--white);
+  text-align: center;
+  padding: 25px 10px;
+  border-bottom: 4px solid var(--mason-green-dark);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.topbar p {
+  margin: 5px 0 0;
+  font-size: 16px;
+}
+
+/* Layout */
+.container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  padding: 20px;
+}
+
+@media (min-width: 800px) {
+  .container {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* Cards */
+.card {
+  background: var(--white);
+  padding: 20px;
+  border-radius: 12px;
+  border: 2px solid var(--mason-green);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.card h2 {
+  margin-top: 0;
+  color: var(--mason-green-dark);
+}
+
+/* Inputs */
+label {
+  font-weight: bold;
+  margin-top: 10px;
+  display: block;
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid var(--mason-green);
+  border-radius: 8px;
+  margin-top: 5px;
+  font-size: 16px;
+  box-sizing: border-box; /* FIX */
+}
+
+/* Button */
+button {
+  margin-top: 15px;
+  width: 100%;
+  padding: 14px;
+  background: var(--mason-green);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  font-size: 18px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s ease;
+}
+
+button:hover {
+  background: var(--mason-green-dark);
+}
+
+/* Map Placeholder */
+.map-placeholder,
+#mapContainer {
+  background: #e8e8e8;
+  border: 2px dashed var(--mason-green);
+  border-radius: 10px;
+
+  /* FIXES */
+  padding: 0; /* remove overflow-causing padding */
+  height: 300px; /* cleaner height */
+  box-sizing: border-box; /* keeps borders inside the box */
+  display: flex; /* center content without padding */
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+  color: #555;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.map-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.path-line {
+  position: absolute;
+  background: var(--mason-green);
+  height: 4px;
+  transform-origin: left center;
+}
+
+/* Hidden */
+.hidden {
+  display: none;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 15px;
+  background: var(--mason-green);
+  color: var(--white);
+  margin-top: 20px;
+}
+
+/* ----------------------------- */
+/* 🌙 Dark Mode Overrides        */
+/* ----------------------------- */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #0d0d0d;
+    color: #e6e6e6;
+  }
+
+  .topbar {
+    background: var(--mason-green-dark);
+    border-bottom-color: #003a28;
+  }
+
+  .card {
+    background: #1a1a1a;
+    border-color: var(--mason-green-dark);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  }
+
+  input {
+    background: #111;
+    color: #e6e6e6;
+    border-color: var(--mason-green);
+  }
+
+  button {
+    background: var(--mason-green);
+    color: white;
+  }
+
+  button:hover {
+    background: var(--mason-green-dark);
+  }
+
+  .map-placeholder,
+  #mapContainer {
+    background: #222;
+    border-color: var(--mason-green);
+    color: #aaa;
+  }
+
+  .footer {
+    background: var(--mason-green-dark);
+    color: #e6e6e6;
+  }
+}
+
+/* Mason Link Style */
+.mason-link {
+  color: var(--mason-green);
+  font-weight: bold;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.mason-link:hover {
+  color: var(--mason-green-dark);
+  text-decoration: underline;
+}
+
+/* Dark Mode Link Override */
+@media (prefers-color-scheme: dark) {
+  .mason-link {
+    color: #4cd9a6; /* lighter green for contrast */
+  }
+
+  .mason-link:hover {
+    color: var(--mason-green);
+  }
+}

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mason School Navigator</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>Mason School Navigator</h1>
+      <p>Find the fastest route to any classroom.</p>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <h2>Important:</h2>
+        <p>
+          This tool is designed to only map the insides of the school, not the
+          parking lot. There may be bugs or unimplemented features. Please use
+          the bug report form at the bottom if you see any bugs
+        </p>
+      </section>
+
+      <section class="card input-card">
+        <h2>Start Navigation</h2>
+
+        <label for="start">Current Room</label>
+        <input id="start" list="rooms" placeholder="e.g., A120" />
+
+        <label for="end">Destination Room</label>
+        <input id="end" list="rooms" placeholder="e.g., B245" />
+
+        <datalist id="rooms">
+          <option value="A101"></option>
+          <option value="A102"></option>
+          <option value="A103"></option>
+          <option value="B210"></option>
+          <option value="C130"></option>
+          <option value="Z310"></option>
+          <!-- ROOM OPTIONS WILL GO HERE -->
+        </datalist>
+
+        <button id="goBtn">Get Directions</button>
+      </section>
+
+      <section class="card output-card hidden" id="output">
+        <h2>Directions</h2>
+        <p id="directions">Your route will appear here.</p>
+      </section>
+
+      <section class="card map-card">
+        <h2>School Map</h2>
+        <div class="map-placeholder">
+          <p>Map will be displayed here once added.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Mason City Schools • Student Navigation Project</p>
+      <a
+        href="https://docs.google.com/forms/d/e/1FAIpQLScU9ZAX9jwBVtQoPmGvyTtTld1GZZsP_Vv1fyH1LrGFXhdXjA/viewform?usp=publish-editor"
+        target="_blank"
+        class="mason-link"
+        rel="noopener noreferrer"
+      >
+        Bug Report
+      </a>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>
