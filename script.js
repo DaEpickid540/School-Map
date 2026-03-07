@@ -1,23 +1,58 @@
 import { schoolGraph } from "./schoolGraph.js";
 import { findShortestPath } from "./pathfinding.js";
 import { drawPathOnMap } from "./mapOverlay.js";
+import { displayRooms } from "./displayRooms.js";
 
-// Wait for DOM to load so inputs exist
 document.addEventListener("DOMContentLoaded", () => {
-  // Auto-uppercase for room inputs
   const startInput = document.getElementById("start");
   const endInput = document.getElementById("end");
+  const datalist = document.getElementById("rooms");
 
+  // Auto-uppercase
   [startInput, endInput].forEach((input) => {
     input.addEventListener("input", () => {
       input.value = input.value.toUpperCase();
     });
   });
 
-  // Button click handler
+  // Populate dropdown
+  Object.entries(displayRooms).forEach(([room, label]) => {
+    const opt = document.createElement("option");
+    opt.value = room;
+    opt.textContent = label;
+    datalist.appendChild(opt);
+  });
+
+  // Floor switching
+  const floorButtons = document.querySelectorAll(".floor-btn");
+  const floorImages = {
+    1: document.getElementById("map-floor-1"),
+    2: document.getElementById("map-floor-2"),
+    3: document.getElementById("map-floor-3"),
+  };
+
+  floorButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const floor = btn.dataset.floor;
+
+      floorButtons.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      Object.values(floorImages).forEach((img) => img.classList.add("hidden"));
+      floorImages[floor].classList.remove("hidden");
+    });
+  });
+
+  // Navigation
   document.getElementById("goBtn").addEventListener("click", () => {
     const start = startInput.value.trim();
     const end = endInput.value.trim();
+
+    if (!start || !end) {
+      document.getElementById("directions").innerText =
+        "Please enter both rooms.";
+      return;
+    }
 
     const path = findShortestPath(schoolGraph, start, end);
 
@@ -29,15 +64,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("directions").innerText =
       `Path: ${path.join(" → ")}`;
 
-    drawPathOnMap(path, coordinates);
+    drawPathOnMap(path);
   });
 });
-
-// Placeholder coordinates until real map is added
-const coordinates = {
-  120: { x: 50, y: 300 },
-  HallC: { x: 150, y: 300 },
-  Stair2: { x: 250, y: 250 },
-  "2F_Landing": { x: 250, y: 150 },
-  245: { x: 350, y: 150 },
-};

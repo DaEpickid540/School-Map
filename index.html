@@ -30,29 +30,21 @@
 
         <label for="end">Destination Room</label>
         <input id="end" list="rooms" placeholder="e.g., B245" />
+        <datalist id="rooms"></datalist>
 
-        <datalist id="rooms">
-          <option value="A101"></option>
-          <option value="A102"></option>
-          <option value="A103"></option>
-          <option value="B210"></option>
-          <option value="C130"></option>
-          <option value="Z310"></option>
-          <!-- ROOM OPTIONS WILL GO HERE -->
-        </datalist>
-
-        <button id="goBtn">Get Directions</button>
-      </section>
-
-      <section class="card output-card hidden" id="output">
-        <h2>Directions</h2>
-        <p id="directions">Your route will appear here.</p>
-      </section>
-
-      <section class="card map-card">
+        <section class="card map-card">
         <h2>School Map</h2>
-        <div class="map-placeholder">
-          <p>Map will be displayed here once added.</p>
+
+        <div class="floor-buttons">
+            <button data-floor="1" class="floor-btn active">Floor 1</button>
+            <button data-floor="2" class="floor-btn">Floor 2</button>
+            <button data-floor="3" class="floor-btn">Floor 3</button>
+        </div>
+
+        <div class="map-container">
+            <img id="map-floor-1" class="map-image" src="maps/floor1.png" />
+            <img id="map-floor-2" class="map-image hidden" src="maps/floor2.png" />
+            <img id="map-floor-3" class="map-image hidden" src="maps/floor3.png" />
         </div>
       </section>
     </main>
