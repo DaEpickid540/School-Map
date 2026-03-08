@@ -9,40 +9,23 @@ canvas.style.top = "0";
 canvas.style.left = "0";
 canvas.style.pointerEvents = "none";
 
-function getFloorForPath(path) {
-  const has3 = path.some((n) => /_3$/.test(n)) || path.includes("Commons_3");
-  const has2 = path.some((n) => /_2$/.test(n)) || path.includes("Commons_2");
-
-  if (has3) return 3;
-  if (has2) return 2;
-  return 1; // default to floor 1
-}
-
-function getCoordinatesForFloor(floor) {
+function getCoordsForFloor(floor) {
   if (floor === 2) return coordinates_floor2;
   if (floor === 3) return coordinates_floor3;
   return coordinates_floor1;
 }
 
-export function drawPathOnMap(path) {
-  const floor = getFloorForPath(path);
-  const coords = getCoordinatesForFloor(floor);
-
+export function drawPathOnMap(path, floor) {
+  const coords = getCoordsForFloor(floor);
   const mapContainer = document.querySelector(".map-container");
   const img = document.getElementById(`map-floor-${floor}`);
 
-  // Ensure correct floor image is visible
-  document
-    .querySelectorAll(".map-image")
-    .forEach((i) => i.classList.add("hidden"));
-  img.classList.remove("hidden");
+  if (!img) return;
 
-  // Resize canvas to image
   canvas.width = img.clientWidth;
   canvas.height = img.clientHeight;
 
   if (!canvas.parentElement) {
-    mapContainer.style.position = "relative";
     mapContainer.appendChild(canvas);
   }
 

@@ -31,19 +31,27 @@ document.addEventListener("DOMContentLoaded", () => {
     3: document.getElementById("map-floor-3"),
   };
 
+  let currentFloor = 1;
+
   floorButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
-      const floor = btn.dataset.floor;
+      const floor = Number(btn.dataset.floor);
+      currentFloor = floor;
 
       floorButtons.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
 
       Object.values(floorImages).forEach((img) => img.classList.add("hidden"));
       floorImages[floor].classList.remove("hidden");
+
+      drawPathOnMap(lastDrawnPath, currentFloor);
     });
   });
 
-  // Navigation
+  // Multi-floor path storage
+  let lastDrawnPath = [];
+
+  // Navigation button
   document.getElementById("goBtn").addEventListener("click", () => {
     const start = startInput.value.trim();
     const end = endInput.value.trim();
@@ -61,9 +69,67 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    document.getElementById("directions").innerText =
-      `Path: ${path.join(" → ")}`;
+    lastDrawnPath = path;
 
-    drawPathOnMap(path);
+    // Multi-floor segmentation
+    const segments = splitPathByFloor(path);
+
+    document.getElementById("directions").innerHTML =
+      formatSegmentsForDisplay(segments);
+
+    // Auto-switch to first floor segment
+    const firstFloor = segments[0].floor;
+    currentFloor = firstFloor;
+
+    floorButtons.forEach((b) => b.classList.remove("active"));
+    document
+      .querySelector(`button[data-floor="${firstFloor}"]`)
+      .classList.add("active");
+
+    Object.values(floorImages).forEach((img) => img.classList.add("hidden"));
+    floorImages[firstFloor].classList.remove("hidden");
+
+    drawPathOnMap(path, firstFloor);
   });
 });
+
+// Determine floor from node name
+function getFloorFromNode(node) {
+  if (/_1$/.test(node)) return 1;
+  if (/_2$/.test(node)) return 2;
+  if (/_3$/.test(node)) return 3;
+
+  const match = node.match(/^([A-Z])(\d)/);
+  if (match) return Number(match[2]);
+
+  return 1;
+}
+
+// Split path into floor segments
+function splitPathByFloor(path) {
+  const segments = [];
+  let currentFloor = getFloorFromNode(path[0]);
+  let currentSegment = { floor: currentFloor, nodes: [] };
+
+  path.forEach((node) => {
+    const floor = getFloorFromNode(node);
+    if (floor !== currentFloor) {
+      segments.push(currentSegment);
+      currentFloor = floor;
+      currentSegment = { floor, nodes: [] };
+    }
+    currentSegment.nodes.push(node);
+  });
+
+  segments.push(currentSegment);
+  return segments;
+}
+
+// Display multi-floor steps
+function formatSegmentsForDisplay(segments) {
+  return segments
+    .map(
+      (seg) => `<strong>Floor ${seg.floor}:</strong> ${seg.nodes.join(" → ")}`,
+    )
+    .join("<br><br>");
+}

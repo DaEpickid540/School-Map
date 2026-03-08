@@ -6,6 +6,7 @@
     <title>Mason School Navigator</title>
     <link rel="stylesheet" href="style.css" />
   </head>
+
   <body>
     <header class="topbar">
       <h1>Mason School Navigator</h1>
@@ -18,7 +19,7 @@
         <p>
           This tool is designed to only map the insides of the school, not the
           parking lot. There may be bugs or unimplemented features. Please use
-          the bug report form at the bottom if you see any bugs
+          the bug report form at the bottom if you see any bugs.
         </p>
       </section>
 
@@ -30,21 +31,34 @@
 
         <label for="end">Destination Room</label>
         <input id="end" list="rooms" placeholder="e.g., B245" />
+
         <datalist id="rooms"></datalist>
 
-        <section class="card map-card">
+        <button id="goBtn">Get Directions</button>
+      </section>
+
+      <!-- FIXED: Map section moved OUTSIDE the input-card -->
+      <section class="card map-card">
         <h2>School Map</h2>
 
         <div class="floor-buttons">
-            <button data-floor="1" class="floor-btn active">Floor 1</button>
-            <button data-floor="2" class="floor-btn">Floor 2</button>
-            <button data-floor="3" class="floor-btn">Floor 3</button>
+          <button data-floor="1" class="floor-btn active">Floor 1</button>
+          <button data-floor="2" class="floor-btn">Floor 2</button>
+          <button data-floor="3" class="floor-btn">Floor 3</button>
         </div>
 
         <div class="map-container">
-            <img id="map-floor-1" class="map-image" src="maps/floor1.png" />
-            <img id="map-floor-2" class="map-image hidden" src="maps/floor2.png" />
-            <img id="map-floor-3" class="map-image hidden" src="maps/floor3.png" />
+          <img id="map-floor-1" class="map-image" src="maps/floor1.png" />
+          <img
+            id="map-floor-2"
+            class="map-image hidden"
+            src="maps/floor2.png"
+          />
+          <img
+            id="map-floor-3"
+            class="map-image hidden"
+            src="maps/floor3.png"
+          />
         </div>
       </section>
     </main>
@@ -61,6 +75,7 @@
       </a>
     </footer>
 
-    <script src="script.js"></script>
+    <!-- FIXED: Must be a module for imports to work -->
+    <script type="module" src="script.js"></script>
   </body>
 </html>
