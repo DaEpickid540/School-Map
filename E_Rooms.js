@@ -1,3 +1,4 @@
 export const E_Rooms = {
-  E134: "E_Wing_1",
+  E135: "E_Wing_1",
+  E137: "E_Wing_1",
 };

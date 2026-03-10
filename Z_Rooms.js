@@ -1,5 +1,5 @@
 export const Z_Rooms = {
-  // Floor 1
+  // ── Floor 1 Z Pod ─────────────────────────────────────────────
   Z100: "Z_Pod_1",
   Z101: "Z_Pod_1",
   Z102: "Z_Pod_1",
@@ -15,22 +15,13 @@ export const Z_Rooms = {
   Z112: "Z_Pod_1",
   Z113: "Z_Pod_1",
   Z114: "Z_Pod_1",
-  Z115: "Z_Pod_1",
-  Z116: "Z_Pod_1",
-  Z117: "Z_Pod_1",
-  Z118: "Z_Pod_1",
   Z119: "Z_Pod_1",
-  Z120: "Z_Pod_1",
-  Z121: "Z_Pod_1",
   Z122: "Z_Pod_1",
-  Z123: "Z_Pod_1",
-  Z124: "Z_Pod_1",
   Z125: "Z_Pod_1",
   Z126: "Z_Pod_1",
   Z127: "Z_Pod_1",
-  Z1: "Z_Pod_1",
-
-  // Floor 2
+  // ── Floor 2 Z Pod ─────────────────────────────────────────────
+  Z200: "Z_Pod_2",
   Z201: "Z_Pod_2",
   Z202: "Z_Pod_2",
   Z203: "Z_Pod_2",
@@ -39,15 +30,15 @@ export const Z_Rooms = {
   Z206: "Z_Pod_2",
   Z207: "Z_Pod_2",
   Z208: "Z_Pod_2",
-  Z209: "Z_Pod_2",
-  Z210: "Z_Pod_2",
-  Z211: "Z_Pod_2",
-  Z212: "Z_Pod_2",
   Z213: "Z_Pod_2",
   Z214: "Z_Pod_2",
-  Z215: "Z_Pod_2",
-
-  // Floor 3
+  Z219: "Z_Pod_2",
+  Z221: "Z_Pod_2",
+  Z222: "Z_Pod_2",
+  Z223: "Z_Pod_2",
+  Z224: "Z_Pod_2",
+  Z226: "Z_Pod_2",
+  // ── Floor 3 Z Pod ─────────────────────────────────────────────
   Z300: "Z_Pod_3",
   Z301: "Z_Pod_3",
   Z302: "Z_Pod_3",
@@ -63,16 +54,10 @@ export const Z_Rooms = {
   Z312: "Z_Pod_3",
   Z313: "Z_Pod_3",
   Z314: "Z_Pod_3",
-  Z315: "Z_Pod_3",
-  Z316: "Z_Pod_3",
-  Z317: "Z_Pod_3",
-  Z318: "Z_Pod_3",
   Z319: "Z_Pod_3",
   Z320: "Z_Pod_3",
   Z321: "Z_Pod_3",
-  Z322: "Z_Pod_3",
   Z323: "Z_Pod_3",
   Z324: "Z_Pod_3",
   Z325: "Z_Pod_3",
-  Z326: "Z_Pod_3",
 };

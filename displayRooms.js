@@ -6,36 +6,20 @@ import { D_Rooms } from "./D_Rooms.js";
 import { E_Rooms } from "./E_Rooms.js";
 import { F_Rooms } from "./F_Rooms.js";
 
-// Rooms to exclude from dropdown
-const mechanicalKeywords = [
-  "MECH",
-  "ELEC",
-  "STOR",
-  "CUST",
-  "JAN",
-  "COPY",
-  "WORK",
-  "CONF",
-  "OFFICE",
-];
-
-// Special display names
 const specialNames = {
-  A10: "A10 (Front Entrance)",
-  A11: "A11 (Front Desk)",
-  C125: "C125 (Harvard Room)",
-  C131: "C131 (Small Commons)",
-  B125: "B125 (Dream Center)",
-  Z122: "Z122 (Attendance Office)",
-  D150: "D150 (Large Commons / Lunchroom)",
-  D138: "D138 (Auditorium)",
-  D201: "D201 (Upstairs Auditorium)",
+  A10: "A10 – Front Entrance / Lobby",
+  A11: "A11 – Front Desk",
+  A12: "A12 – Counseling",
+  A32: "A32 – Office",
+  C100: "C100 – Commons / Food Court",
+  C111: "C111 – Media Center",
+  C121: "C121 – Auditorium Lobby",
+  D138: "D138 – Auditorium",
+  D150: "D150 – Main Commons / Lunchroom",
+  D123: "D123 – Field House / Gym",
+  B125: "B125 – Dream Center",
+  Z122: "Z122 – Attendance Office",
 };
-
-// Community Center rooms (D16x, D17x)
-function isCommunityCenter(room) {
-  return /^D1(6|7)\d$/.test(room);
-}
 
 export const displayRooms = Object.fromEntries(
   Object.entries({
@@ -47,13 +31,8 @@ export const displayRooms = Object.fromEntries(
     ...E_Rooms,
     ...F_Rooms,
   })
-    .filter(([room]) => {
-      if (room in specialNames) return true;
-      return !mechanicalKeywords.some((k) => room.includes(k));
-    })
-    .map(([room]) => {
-      if (specialNames[room]) return [room, specialNames[room]];
-      if (isCommunityCenter(room)) return [room, `${room} (Community Center)`];
-      return [room, room];
-    }),
+    .sort(([a], [b]) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+    )
+    .map(([room]) => [room, specialNames[room] || room]),
 );
