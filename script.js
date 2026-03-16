@@ -1,13 +1,220 @@
 // script.js
 import { schoolGraph, getRoomFloor, STAIR_NODES } from "./schoolGraph.js";
 import { findShortestPath } from "./pathfinding.js";
-import {
-  splitPathByFloor,
-  drawAllSegments,
-  clearAllCanvases,
-} from "./mapOverlay.js";
 import { displayRooms } from "./displayRooms.js";
 
+// ── Layout knowledge from studying floor plans ──────────────────
+// Physical layout of Mason HS:
+// - C Pod: north section, connects directly to Commons (C100 area) and D Wing
+// - B Pod: east/northeast, diagonal. Connects to C Pod and Commons
+// - A Pod: southeast, horizontal. Connects to B Pod via short hallway (near B100/B125b)
+// - Z Pod: south, diagonal. Connects to A Pod (near A10/lobby area)
+// - Commons: central hub (C100/D150 area), connects C Pod, B Pod, D Wing
+// - D Wing: west, connects Commons to E/F Wing (auditorium, gym, natatorium)
+//
+// Stairwells (all connect floors 1-2-3):
+// - C Stair: inside C Pod near C115/C108 area (upper section of C Pod)
+// - B Stair: at the B Pod / C Pod / Commons junction near B114/B129 area
+// - A Stair: at the B Pod / A Pod junction near B101/B125b connector
+// - Z Stair: at the A Pod / Z Pod junction near A10/Z127 area
+
+const POD_NAMES = {
+  A_Pod: "A Pod",
+  B_Pod: "B Pod",
+  C_Pod: "C Pod",
+  Z_Pod: "Z Pod",
+  D_Wing: "D Wing",
+  E_Wing: "E Wing",
+  F_Wing: "F Wing",
+  Commons: "Commons",
+};
+
+function getPodKey(node) {
+  const m = node.match(/^([A-Z](?:_Pod|_Wing))_\d$/);
+  if (m) return m[1];
+  if (node.startsWith("Commons_")) return "Commons";
+  return null;
+}
+
+function podDisplayName(node) {
+  if (!node) return "";
+  const key = getPodKey(node);
+  return key
+    ? POD_NAMES[key] || key.replace(/_/g, " ")
+    : node.replace(/_/g, " ");
+}
+
+function floorLabel(f) {
+  return f === 1 ? "1st floor" : f === 2 ? "2nd floor" : "3rd floor";
+}
+
+function roomPodKey(room) {
+  const pod = schoolGraph[room]?.[0];
+  return pod ? getPodKey(pod) : null;
+}
+
+// ── Hallway walk descriptions between pods ──────────────────────
+// Based on actual floor plan study
+function getWalkDescription(fromNode, toNode, floor) {
+  const from =
+    getPodKey(fromNode) ||
+    (fromNode.startsWith("Commons") ? "Commons" : fromNode);
+  const to =
+    getPodKey(toNode) || (toNode.startsWith("Commons") ? "Commons" : toNode);
+  const f = floor || 1;
+
+  const key = `${from}->${to}`;
+  const descriptions = {
+    // C Pod ↔ Commons
+    "C_Pod->Commons":
+      "Walk south through C Pod past C100 (Food Court) into the Commons hallway",
+    "Commons->C_Pod":
+      "Walk north through the Commons past C100 (Food Court) into C Pod",
+    // B Pod ↔ Commons
+    "B_Pod->Commons": "Walk west through B Pod into the Commons hallway",
+    "Commons->B_Pod": "Walk east through the Commons into B Pod",
+    // B Pod ↔ C Pod
+    "B_Pod->C_Pod":
+      "Walk northwest through B Pod toward C Pod (pass B114/B129 area)",
+    "C_Pod->B_Pod":
+      "Walk southeast through C Pod toward B Pod (pass C101/C102 area)",
+    // A Pod ↔ B Pod
+    "A_Pod->B_Pod":
+      "Walk northwest through the connector hallway from A Pod into B Pod (pass near B100/B125b)",
+    "B_Pod->A_Pod":
+      "Walk southeast through the connector hallway from B Pod into A Pod (pass near B100/B125b)",
+    // A Pod ↔ Z Pod
+    "A_Pod->Z_Pod":
+      "Walk south through A Pod toward the lobby area (near A10/A11) into Z Pod",
+    "Z_Pod->A_Pod":
+      "Walk north through Z Pod past the lobby (near A10/A11) into A Pod",
+    // Commons ↔ D Wing
+    "Commons->D_Wing": "Walk west through the Commons into D Wing",
+    "D_Wing->Commons": "Walk east through D Wing into the Commons",
+    // D Wing ↔ E/F Wing
+    "D_Wing->E_Wing": "Continue west through D Wing into E Wing",
+    "E_Wing->D_Wing": "Walk east through E Wing back into D Wing",
+    "D_Wing->F_Wing": "Continue west through D Wing into F Wing",
+    "F_Wing->D_Wing": "Walk east through F Wing back into D Wing",
+    // Z Pod ↔ Commons
+    "Z_Pod->Commons":
+      "Walk north through Z Pod into A Pod, then continue north through the connector to the Commons",
+    "Commons->Z_Pod":
+      "Walk south through the Commons into A Pod, then continue south into Z Pod",
+  };
+
+  return (
+    descriptions[key] ||
+    `Walk from ${podDisplayName(fromNode)} to ${podDisplayName(toNode)}`
+  );
+}
+
+// ── Stair descriptions ──────────────────────────────────────────
+function getStairDescription(stairNode, fromFloor, toFloor) {
+  const dir = toFloor > fromFloor ? "up" : "down";
+  const stairLocations = {
+    C_Stair: "the C stairwell (located inside C Pod near rooms C108/C115)",
+    B_Stair:
+      "the B stairwell (located at the B Pod / Commons junction near B114/B129)",
+    A_Stair:
+      "the A stairwell (located in the B Pod / A Pod connector hallway near B101)",
+    Z_Stair:
+      "the Z stairwell (located at the A Pod / Z Pod junction near A10/Z127)",
+  };
+  const location =
+    stairLocations[stairNode] ||
+    `the ${stairNode.replace("_Stair", "")} stairwell`;
+  return {
+    main: `Take ${location} ${dir} to the <strong>${floorLabel(toFloor)}</strong>`,
+    sub: `Look for stairwell signs labeled "${stairNode.replace("_Stair", "")}"`,
+  };
+}
+
+// ── Room side hint ──────────────────────────────────────────────
+function getRoomSideHint(roomName) {
+  // Based on floor plan study - rooms on each side of hallways
+  const num = parseInt(roomName.replace(/[^0-9]/g, ""), 10);
+  if (isNaN(num)) return "";
+  // In most pods, lower-numbered rooms are on one side, higher on the other
+  // This is a rough heuristic - odd vs even within each pod
+  const inPodNum = num % 100;
+  if (inPodNum === 0) return ""; // hub rooms
+  return inPodNum % 2 === 1
+    ? "left side of the hallway"
+    : "right side of the hallway";
+}
+
+// ── Main directions generator ───────────────────────────────────
+function generateSteps(path, start, end) {
+  const steps = [];
+  const startFloor = getRoomFloor(start) || 1;
+  const endFloor = getRoomFloor(end) || 1;
+  let prevFloor = startFloor;
+  let prevPodNode = schoolGraph[start]?.[0]; // the pod node of the start room
+
+  // Step 1: Start
+  const startPodName = podDisplayName(prevPodNode);
+  steps.push({
+    icon: "📍",
+    text: `Start at <strong>${displayRooms[start] || start}</strong>`,
+    sub: `${floorLabel(startFloor)} · ${startPodName}`,
+  });
+
+  let stairCount = 0;
+
+  for (let i = 1; i < path.length; i++) {
+    const node = path[i];
+
+    // ── Stairwell ──
+    if (STAIR_NODES.has(node)) {
+      stairCount++;
+      let toFloor = prevFloor;
+      for (let j = i + 1; j < path.length; j++) {
+        const f = getRoomFloor(path[j]);
+        if (f !== null) {
+          toFloor = f;
+          break;
+        }
+      }
+      const desc = getStairDescription(node, prevFloor, toFloor);
+      steps.push({
+        icon: toFloor > prevFloor ? "⬆️" : "⬇️",
+        text: desc.main,
+        sub: desc.sub,
+      });
+      prevFloor = toFloor;
+      continue;
+    }
+
+    // ── Pod / Wing hub ──
+    if (/^[A-Z](?:_Pod|_Wing)_\d$/.test(node) || /^Commons_\d$/.test(node)) {
+      const walkDesc = getWalkDescription(prevPodNode || node, node, prevFloor);
+      steps.push({
+        icon: "🚶",
+        text: walkDesc,
+        sub: `Floor ${prevFloor}`,
+      });
+      prevPodNode = node;
+      continue;
+    }
+
+    // ── Destination room ──
+    if (node === end) {
+      const sideHint = getRoomSideHint(end);
+      const endPodName = podDisplayName(schoolGraph[end]?.[0] || "");
+      steps.push({
+        icon: "🎯",
+        text: `Arrive at <strong>${displayRooms[end] || end}</strong>${sideHint ? ` — on the <strong>${sideHint}</strong>` : ""}`,
+        sub: `${floorLabel(endFloor)} · ${endPodName}`,
+      });
+    }
+  }
+
+  const floors = [...new Set([startFloor, endFloor])].sort();
+  return { steps, startFloor, endFloor, stairCount, floors };
+}
+
+// ── DOM ─────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   const startInput = document.getElementById("start");
   const endInput = document.getElementById("end");
@@ -15,18 +222,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const goBtn = document.getElementById("goBtn");
   const dirBox = document.getElementById("directions");
 
-  // ── Populate autocomplete ───────────────────────────────────────
-  const sortedRooms = Object.entries(displayRooms).sort(([a], [b]) =>
-    a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
-  );
-  sortedRooms.forEach(([room, label]) => {
-    const opt = document.createElement("option");
-    opt.value = room;
-    opt.textContent = label;
-    datalist.appendChild(opt);
-  });
+  Object.entries(displayRooms)
+    .sort(([a], [b]) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+    )
+    .forEach(([room, label]) => {
+      const opt = document.createElement("option");
+      opt.value = room;
+      opt.textContent = label;
+      datalist.appendChild(opt);
+    });
 
-  // ── Auto-uppercase ──────────────────────────────────────────────
   [startInput, endInput].forEach((inp) => {
     inp.addEventListener("input", () => {
       const pos = inp.selectionStart;
@@ -35,81 +241,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // ── Zoom sliders ────────────────────────────────────────────────
-  [1, 2, 3].forEach((floor) => {
-    const slider = document.getElementById(`zoom-floor-${floor}`);
-    const wrapper = document.getElementById(`wrapper-floor-${floor}`);
-    const img = document.getElementById(`map-floor-${floor}`);
-    if (!slider || !wrapper || !img) return;
-
-    let isDragging = false,
-      startX,
-      startY,
-      startLeft,
-      startTop;
-    let currentZoom = 1;
-    let panX = 0,
-      panY = 0;
-
-    function applyTransform() {
-      img.style.transform = `scale(${currentZoom}) translate(${panX / currentZoom}px, ${panY / currentZoom}px)`;
-      img.style.transformOrigin = "top left";
-      // Resize canvas to match
-      const canvas = document.getElementById(`canvas-floor-${floor}`);
-      if (canvas) {
-        canvas.style.transform = img.style.transform;
-        canvas.style.transformOrigin = img.style.transformOrigin;
-      }
-    }
-
-    slider.addEventListener("input", () => {
-      currentZoom = parseFloat(slider.value);
-      panX = 0;
-      panY = 0;
-      applyTransform();
-    });
-
-    // Pan via mouse drag when zoomed
-    wrapper.addEventListener("mousedown", (e) => {
-      if (currentZoom <= 1) return;
-      isDragging = true;
-      startX = e.clientX - panX;
-      startY = e.clientY - panY;
-      wrapper.style.cursor = "grabbing";
-    });
-    window.addEventListener("mousemove", (e) => {
-      if (!isDragging) return;
-      panX = e.clientX - startX;
-      panY = e.clientY - startY;
-      applyTransform();
-    });
-    window.addEventListener("mouseup", () => {
-      isDragging = false;
-      wrapper.style.cursor = currentZoom > 1 ? "grab" : "default";
-    });
-    // Touch pan
-    wrapper.addEventListener(
-      "touchstart",
-      (e) => {
-        if (currentZoom <= 1 || e.touches.length !== 1) return;
-        startX = e.touches[0].clientX - panX;
-        startY = e.touches[0].clientY - panY;
-      },
-      { passive: true },
-    );
-    wrapper.addEventListener(
-      "touchmove",
-      (e) => {
-        if (currentZoom <= 1 || e.touches.length !== 1) return;
-        panX = e.touches[0].clientX - startX;
-        panY = e.touches[0].clientY - startY;
-        applyTransform();
-      },
-      { passive: true },
-    );
-  });
-
-  // ── Get Directions ──────────────────────────────────────────────
   goBtn.addEventListener("click", go);
   [startInput, endInput].forEach((inp) =>
     inp.addEventListener("keydown", (e) => {
@@ -120,8 +251,6 @@ document.addEventListener("DOMContentLoaded", () => {
   function go() {
     const start = startInput.value.trim().toUpperCase();
     const end = endInput.value.trim().toUpperCase();
-
-    clearAllCanvases();
     dirBox.className = "directions-box";
     dirBox.innerHTML = "";
 
@@ -136,88 +265,46 @@ document.addEventListener("DOMContentLoaded", () => {
     const path = findShortestPath(schoolGraph, start, end);
     if (!path) return showError("No route could be found between those rooms.");
 
-    const segments = splitPathByFloor(path);
-    requestAnimationFrame(() => drawAllSegments(segments));
+    const { steps, startFloor, endFloor, stairCount, floors } = generateSteps(
+      path,
+      start,
+      end,
+    );
 
-    // Scroll start floor into view
-    const startFloor = getRoomFloor(start) || 1;
-    document
-      .getElementById(`map-floor-${startFloor}`)
-      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const floorBadge =
+      floors.length > 1
+        ? `<span class="badge badge-warn">Floors ${floors.join(" → ")}</span>`
+        : `<span class="badge badge-ok">Floor ${floors[0]}</span>`;
+    const stairBadge =
+      stairCount > 0
+        ? `<span class="badge badge-stair">🪜 ${stairCount} stairwell${stairCount > 1 ? "s" : ""}</span>`
+        : "";
 
-    renderInstructions(path, start, end, segments);
+    let html = `
+      <div class="dir-header">
+        <div class="dir-title">Route: <strong>${displayRooms[start] || start}</strong> → <strong>${displayRooms[end] || end}</strong></div>
+        <div class="dir-badges">${floorBadge}${stairBadge}</div>
+      </div>
+      <ol class="dir-steps">
+    `;
+    steps.forEach((step) => {
+      html += `
+        <li class="dir-step">
+          <span class="step-icon">${step.icon}</span>
+          <div class="step-body">
+            <div class="step-main">${step.text}</div>
+            ${step.sub ? `<div class="step-sub">${step.sub}</div>` : ""}
+          </div>
+        </li>
+      `;
+    });
+    html += `</ol>`;
+    dirBox.className = "directions-box dir-success";
+    dirBox.innerHTML = html;
   }
 
   function showError(msg) {
     dirBox.className = "directions-box dir-error";
     dirBox.innerHTML = `<p>⚠️ ${msg}</p>`;
-  }
-
-  function renderInstructions(path, start, end, segments) {
-    const startFloor = getRoomFloor(start) || 1;
-    const endFloor = getRoomFloor(end) || 1;
-    const steps = [];
-    let step = 1;
-
-    steps.push(
-      `<li><strong>${step++}.</strong> Start at <strong>${start}</strong> (Floor ${startFloor}).</li>`,
-    );
-
-    let prevFloor = startFloor;
-    for (let i = 1; i < path.length; i++) {
-      const node = path[i];
-      if (STAIR_NODES.has(node)) {
-        let toFloor = prevFloor;
-        for (let j = i + 1; j < path.length; j++) {
-          const f = getRoomFloor(path[j]);
-          if (f !== null) {
-            toFloor = f;
-            break;
-          }
-        }
-        const dir = toFloor > prevFloor ? "up" : "down";
-        const label = node.replace("_Stair", "");
-        steps.push(
-          `<li><strong>${step++}.</strong> Take the <strong>${label} stairwell</strong> ${dir} to Floor ${toFloor}.</li>`,
-        );
-        prevFloor = toFloor;
-        continue;
-      }
-      if (/^[A-Z]_Pod_\d$/.test(node)) {
-        steps.push(
-          `<li><strong>${step++}.</strong> Walk through the <strong>${node.replace("_Pod_" + node.slice(-1), "")} Pod</strong> hallway.</li>`,
-        );
-        continue;
-      }
-      if (/^Commons_\d$/.test(node)) {
-        steps.push(
-          `<li><strong>${step++}.</strong> Pass through the <strong>Commons</strong>.</li>`,
-        );
-        continue;
-      }
-      if (/^[A-Z]_Wing_\d$/.test(node)) {
-        steps.push(
-          `<li><strong>${step++}.</strong> Walk through <strong>${node.replace(/_/g, " ")}</strong>.</li>`,
-        );
-        continue;
-      }
-      if (node === end) {
-        steps.push(
-          `<li><strong>${step++}.</strong> Arrive at <strong>${end}</strong> (Floor ${endFloor}). 🎉</li>`,
-        );
-      }
-    }
-
-    const floors = [...new Set(segments.map((s) => s.floor))].sort();
-    let hint = "";
-    if (floors.length > 1) {
-      hint = `<p class="dir-hint">📍 Route crosses floors ${floors.join(", ")}. Lines are shown on each floor's map.</p>`;
-    }
-
-    dirBox.className = "directions-box dir-success";
-    dirBox.innerHTML =
-      `<div class="dir-header">Route: <strong>${start}</strong> → <strong>${end}</strong></div>` +
-      hint +
-      `<ol class="dir-steps">${steps.join("")}</ol>`;
   }
 });

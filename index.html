@@ -3,23 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mason School Navigator</title>
+    <title>Mason Navigator</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <header class="topbar">
-      <h1>🏫 Mason School Navigator</h1>
-      <p>Find the fastest route to any classroom.</p>
+      <div class="topbar-top">
+        <div>
+          <h1>🏫 Mason Navigator</h1>
+          <p>Find the fastest route to any classroom.</p>
+        </div>
+      </div>
+      <nav class="navbar">
+        <a href="index.html" class="nav-link active">Navigate</a>
+        <a href="why.html" class="nav-link">Why</a>
+        <a href="experimental.html" class="nav-link">Experimental</a>
+      </nav>
     </header>
 
     <main class="container">
       <section class="card info-card">
-        <h2>ℹ️ How to Use</h2>
+        <h2>How to Use</h2>
         <p>
-          Type your current room and destination below, then press
-          <strong>Get Directions</strong>. The route is drawn on all floor maps
-          simultaneously. Use the zoom slider under each map to zoom in on any
-          floor.
+          Type your current room and destination below, then press Get
+          Directions. Step-by-step walking directions will appear below.
         </p>
       </section>
 
@@ -43,105 +50,13 @@
         <button id="goBtn">🗺️ Get Directions</button>
       </section>
 
-      <section class="card map-card">
-        <h2>School Map</h2>
-
-        <!-- Floor 1 -->
-        <div class="floor-header">
-          <span class="floor-label">Floor 1</span>
-          <label class="zoom-label"
-            >Zoom: <span id="zoom-val-1">1×</span></label
-          >
-          <input
-            type="range"
-            id="zoom-floor-1"
-            class="zoom-slider"
-            min="1"
-            max="5"
-            step="0.1"
-            value="1"
-            oninput="
-              document.getElementById('zoom-val-1').textContent =
-                parseFloat(this.value).toFixed(1) + '×'
-            "
-          />
-        </div>
-        <div class="map-floor-wrapper" id="wrapper-floor-1">
-          <img
-            id="map-floor-1"
-            class="map-image"
-            src="maps/floor1.png"
-            alt="Floor 1 Plan"
-          />
-          <canvas id="canvas-floor-1" class="map-canvas"></canvas>
-        </div>
-
-        <!-- Floor 2 -->
-        <div class="floor-header">
-          <span class="floor-label">Floor 2</span>
-          <label class="zoom-label"
-            >Zoom: <span id="zoom-val-2">1×</span></label
-          >
-          <input
-            type="range"
-            id="zoom-floor-2"
-            class="zoom-slider"
-            min="1"
-            max="5"
-            step="0.1"
-            value="1"
-            oninput="
-              document.getElementById('zoom-val-2').textContent =
-                parseFloat(this.value).toFixed(1) + '×'
-            "
-          />
-        </div>
-        <div class="map-floor-wrapper" id="wrapper-floor-2">
-          <img
-            id="map-floor-2"
-            class="map-image"
-            src="maps/floor2.png"
-            alt="Floor 2 Plan"
-          />
-          <canvas id="canvas-floor-2" class="map-canvas"></canvas>
-        </div>
-
-        <!-- Floor 3 -->
-        <div class="floor-header">
-          <span class="floor-label">Floor 3</span>
-          <label class="zoom-label"
-            >Zoom: <span id="zoom-val-3">1×</span></label
-          >
-          <input
-            type="range"
-            id="zoom-floor-3"
-            class="zoom-slider"
-            min="1"
-            max="5"
-            step="0.1"
-            value="1"
-            oninput="
-              document.getElementById('zoom-val-3').textContent =
-                parseFloat(this.value).toFixed(1) + '×'
-            "
-          />
-        </div>
-        <div class="map-floor-wrapper" id="wrapper-floor-3">
-          <img
-            id="map-floor-3"
-            class="map-image"
-            src="maps/floor3.png"
-            alt="Floor 3 Plan"
-          />
-          <canvas id="canvas-floor-3" class="map-canvas"></canvas>
-        </div>
-
+      <section class="card directions-card">
         <div id="directions" class="directions-box"></div>
       </section>
     </main>
 
     <footer class="footer">
-      <p>Mason City Schools · Student Navigation Project</p>
+      <p>Mason City Schools · Student Navigation Project · Sarvin Sukhe</p>
       <a
         href="https://docs.google.com/forms/d/e/1FAIpQLScU9ZAX9jwBVtQoPmGvyTtTld1GZZsP_Vv1fyH1LrGFXhdXjA/viewform?usp=publish-editor"
         target="_blank"

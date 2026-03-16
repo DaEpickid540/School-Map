@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Why — Mason Navigator</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-top">
+        <div>
+          <h1>🏫 Mason Navigator</h1>
+          <p>Find the fastest route to any classroom.</p>
+        </div>
+      </div>
+      <nav class="navbar">
+        <a href="index.html" class="nav-link">Navigate</a>
+        <a href="why.html" class="nav-link active">Why</a>
+        <a href="experimental.html" class="nav-link">Experimental</a>
+      </nav>
+    </header>
+
+    <main class="why-container">
+      <!-- Hero -->
+      <div class="why-hero">
+        <h1>Building the Infrastructure<br />That Should Have Existed</h1>
+        <p class="byline">
+          By <span>Sarvin Sukhe</span> &nbsp;·&nbsp; XLP Venture Studios
+          &nbsp;·&nbsp; Mason High School
+        </p>
+      </div>
+
+      <!-- Stats row -->
+      <div class="why-stat-row">
+        <div class="why-stat">
+          <span class="num">300+</span>
+          <span class="label">Rooms Mapped</span>
+        </div>
+        <div class="why-stat">
+          <span class="num">3</span>
+          <span class="label">Floors</span>
+        </div>
+        <div class="why-stat">
+          <span class="num">0</span>
+          <span class="label">Prior Digital Maps</span>
+        </div>
+      </div>
+
+      <!-- Full-width intro -->
+      <div class="why-full">
+        <h3>The Problem</h3>
+        <p>
+          Mason High School is a large, architecturally complex building —
+          multiple pods, long connecting hallways, irregular room numbering, and
+          three floors that don't align cleanly. Students get lost on their
+          first day. Visitors struggle to find specific rooms. Even staff
+          occasionally have to ask for directions.
+          <strong
+            >There was no official digital map, no coordinate data, and no
+            routing system of any kind.</strong
+          >
+          I built one from scratch.
+        </p>
+      </div>
+
+      <!-- Grid sections -->
+      <div class="why-grid">
+        <div class="why-section">
+          <h3>Missing Digital Infrastructure</h3>
+          <p>
+            Most modern public buildings have some form of digital wayfinding —
+            an app, a kiosk, or at minimum a floor plan PDF. Mason had none of
+            these for students. The building's complexity made verbal directions
+            unreliable.
+            <strong
+              >The absence of a navigation system wasn't just an inconvenience —
+              it was a gap in the school's infrastructure.</strong
+            >
+            This project fills that gap.
+          </p>
+        </div>
+
+        <div class="why-section">
+          <h3>Why a Coordinate System Was Necessary</h3>
+          <p>
+            You cannot build a routing system without knowing where things are.
+            I had to establish a pixel-accurate coordinate for every room, hub,
+            stairwell, and hallway node across all three floors.
+            <strong
+              >I created a coordinate system from scratch using a top-left
+              origin and consistent pixel mapping</strong
+            >
+            — then annotated every room using a professional labeling workflow,
+            verifying positions against the actual floor plan images.
+          </p>
+        </div>
+
+        <div class="why-section">
+          <h3>The Challenge of Multi-Floor Mapping</h3>
+          <p>
+            Mapping a single floor is straightforward. Mapping three floors that
+            transition through specific stairwells — with each stairwell
+            connecting only certain pods — is a fundamentally different problem.
+            <strong
+              >I modeled each stairwell as a named node in the routing
+              graph</strong
+            >, explicitly connecting the correct pods on each floor, so paths
+            could flow naturally across floors while remaining accurate to the
+            physical building.
+          </p>
+        </div>
+
+        <div class="why-section">
+          <h3>Accuracy and Consistency</h3>
+          <p>
+            Bad coordinate data produces misleading routes — worse than no data
+            at all. I approached accuracy as an engineering requirement, not a
+            nice-to-have. Every room position was read directly from floor plan
+            images at high zoom, cross-referenced against room labels, and
+            structured in a consistent format.
+            <strong
+              >The data model is deterministic: same input always produces the
+              same output.</strong
+            >
+          </p>
+        </div>
+
+        <div class="why-section">
+          <h3>Why Graph-Based Routing Matters</h3>
+          <p>
+            A simple lookup table can tell you where a room is. Only a routing
+            graph can tell you how to get there. I built a graph where every
+            room, pod, stairwell, and hallway connector is a node, and every
+            physical connection is an edge.
+            <strong
+              >BFS pathfinding then computes the shortest valid path</strong
+            >
+            — handling multi-floor transitions, pod-to-pod hops, and stairwell
+            logic automatically.
+          </p>
+        </div>
+
+        <div class="why-section">
+          <h3>Designed to Scale</h3>
+          <p>
+            The system is modular by design. Room-to-pod mappings live in
+            separate files per pod. Coordinates are isolated per floor. The
+            graph is defined once and shared across the routing and display
+            layers.
+            <strong
+              >Adding a new room means adding one entry in one file — nothing
+              else changes.</strong
+            >
+            The same architecture could be adapted to any other building with
+            minimal effort.
+          </p>
+        </div>
+      </div>
+
+      <!-- Full-width engineering principles -->
+      <div class="why-full">
+        <h3>What This Demonstrates</h3>
+        <p>
+          This project is an exercise in engineering thinking applied to a real,
+          unsolved problem. I didn't start with a framework or a tutorial — I
+          started with a building, a problem, and first principles. I identified
+          what data was needed, built a system to capture it accurately,
+          designed a graph model that reflects physical reality, and wrapped it
+          in a UI that's fast and usable.
+          <strong
+            >Every decision was made to serve correctness, maintainability, and
+            real-world utility.</strong
+          >
+          That's what engineering is.
+        </p>
+      </div>
+
+      <!-- XLP context -->
+      <div class="why-full">
+        <h3>XLP Venture Studios</h3>
+        <p>
+          This project was built as part of
+          <strong>XLP Venture Studios</strong> at Mason High School — a program
+          that challenges students to identify real problems and build real
+          solutions. The goal isn't a school project. It's a functional product
+          that solves something. The Mason Navigator is exactly that: a piece of
+          infrastructure that didn't exist, built to the standard of something
+          that should.
+        </p>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>Mason City Schools · Student Navigation Project · Sarvin Sukhe</p>
+      <a
+        href="https://docs.google.com/forms/d/e/1FAIpQLScU9ZAX9jwBVtQoPmGvyTtTld1GZZsP_Vv1fyH1LrGFXhdXjA/viewform?usp=publish-editor"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="mason-link"
+        >🐛 Report a Bug</a
+      >
+    </footer>
+  </body>
+</html>
