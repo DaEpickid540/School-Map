@@ -1,0 +1,29 @@
+{
+  "name": "Mason Navigator",
+  "short_name": "MHS Nav",
+  "description": "Find the fastest route to any classroom at Mason High School",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050e05",
+  "theme_color": "#2e8b2e",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    { "src": "icons/screenshot.png", "sizes": "1280x720", "type": "image/png" }
+  ],
+  "categories": ["education", "navigation"],
+  "prefer_related_applications": false
+}

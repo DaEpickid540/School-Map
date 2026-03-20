@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en" data-theme="cyberpunk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Map Router — Mason Navigator</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <button class="settings-trigger" id="settingsTrigger" aria-label="Settings">
+      ⚙
+    </button>
+    <div class="settings-overlay" id="settingsOverlay"></div>
+    <aside class="settings-sidebar" id="settingsSidebar">
+      <div class="settings-sidebar-header">
+        <h3>Settings</h3>
+        <button class="settings-close" id="settingsClose">✕</button>
+      </div>
+      <div class="settings-body">
+        <div class="settings-group">
+          <label class="group-label">Color Theme</label>
+          <div class="theme-grid">
+            <button class="theme-btn active" data-theme="cyberpunk">
+              <div class="swatch swatch-cyberpunk"></div>
+              Cyberpunk
+            </button>
+            <button class="theme-btn" data-theme="light">
+              <div class="swatch swatch-light"></div>
+              Light
+            </button>
+            <button class="theme-btn" data-theme="neon">
+              <div class="swatch swatch-neon"></div>
+              Neon
+            </button>
+            <button class="theme-btn" data-theme="steel">
+              <div class="swatch swatch-steel"></div>
+              Steel Blue
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <header class="topbar">
+      <div class="topbar-top">
+        <div>
+          <h1>🏫 Mason Navigator</h1>
+          <p>Find the fastest route to any classroom.</p>
+        </div>
+      </div>
+      <nav class="navbar">
+        <a href="../index.html" class="nav-link">Navigate</a>
+        <a href="../why.html" class="nav-link">Why</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="card info-card">
+        <h2>Visual Map Router</h2>
+        <p>
+          Enter rooms below to plot a route. Map overlays are kept in the
+          codebase and will be re-enabled once coordinates are finalized.
+        </p>
+      </section>
+
+      <section class="card input-card">
+        <h2>Start Navigation</h2>
+        <label for="exp-start">Start Room</label>
+        <input
+          id="exp-start"
+          list="exp-rooms"
+          placeholder="e.g. A115"
+          autocomplete="off"
+        />
+        <label for="exp-end">Destination Room</label>
+        <input
+          id="exp-end"
+          list="exp-rooms"
+          placeholder="e.g. B210"
+          autocomplete="off"
+        />
+        <datalist id="exp-rooms"></datalist>
+        <button id="exp-goBtn">🗺️ Get Directions</button>
+      </section>
+
+      <section class="card directions-card">
+        <div id="exp-directions" class="directions-box"></div>
+      </section>
+    </main>
+
+    <div id="map-overlay-container">
+      <div class="map-floor-wrapper" id="wrapper-floor-1">
+        <img
+          id="map-floor-1"
+          class="map-image"
+          src="../maps/floor1.png"
+          alt="Floor 1"
+        />
+        <canvas id="canvas-floor-1" class="map-canvas"></canvas>
+      </div>
+      <div class="map-floor-wrapper" id="wrapper-floor-2">
+        <img
+          id="map-floor-2"
+          class="map-image"
+          src="../maps/floor2.png"
+          alt="Floor 2"
+        />
+        <canvas id="canvas-floor-2" class="map-canvas"></canvas>
+      </div>
+      <div class="map-floor-wrapper" id="wrapper-floor-3">
+        <img
+          id="map-floor-3"
+          class="map-image"
+          src="../maps/floor3.png"
+          alt="Floor 3"
+        />
+        <canvas id="canvas-floor-3" class="map-canvas"></canvas>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <p>Mason City Schools · Student Navigation Project · Sarvin Sukhe</p>
+      <a
+        href="https://docs.google.com/forms/d/e/1FAIpQLScU9ZAX9jwBVtQoPmGvyTtTld1GZZsP_Vv1fyH1LrGFXhdXjA/viewform?usp=publish-editor"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="mason-link"
+        >🐛 Report a Bug</a
+      >
+    </footer>
+
+    <script src="../theme.js"></script>
+    <script type="module">
+      import {
+        schoolGraph,
+        getRoomFloor,
+        STAIR_NODES,
+      } from "../schoolGraph.js";
+      import { findShortestPath } from "../pathfinding.js";
+      import { displayRooms } from "../displayRooms.js";
+
+      // Map overlay imports kept, not called until maps are re-enabled
+      import {
+        splitPathByFloor,
+        drawAllSegments,
+        clearAllCanvases,
+      } from "./mapOverlay.js";
+
+      const startInput = document.getElementById("exp-start");
+      const endInput = document.getElementById("exp-end");
+      const datalist = document.getElementById("exp-rooms");
+      const goBtn = document.getElementById("exp-goBtn");
+      const dirBox = document.getElementById("exp-directions");
+
+      const POD_NAMES = {
+        A_Pod: "A Pod",
+        B_Pod: "B Pod",
+        C_Pod: "C Pod",
+        Z_Pod: "Z Pod",
+        D_Wing: "D Wing",
+        E_Wing: "E Wing",
+        F_Wing: "F Wing",
+        Commons: "Commons",
+      };
+      const WALK_DESC = {
+        "C_Pod->Commons":
+          "Walk south through C Pod past C100 (Food Court) into the Commons",
+        "Commons->C_Pod": "Walk north through the Commons past C100 into C Pod",
+        "B_Pod->Commons": "Walk west through B Pod into the Commons hallway",
+        "Commons->B_Pod": "Walk east from the Commons into B Pod",
+        "B_Pod->C_Pod":
+          "Walk northwest through B Pod toward C Pod (pass B114/B129 area)",
+        "C_Pod->B_Pod":
+          "Walk southeast through C Pod toward B Pod (pass C101/C102 area)",
+        "A_Pod->B_Pod":
+          "Walk northwest through the connector hallway into B Pod (pass near B100/B125b)",
+        "B_Pod->A_Pod":
+          "Walk southeast through the connector hallway into A Pod (pass near B100/B125b)",
+        "A_Pod->Z_Pod":
+          "Walk south through A Pod toward the lobby (near A10/A11) into Z Pod",
+        "Z_Pod->A_Pod":
+          "Walk north through Z Pod past the lobby (near A10/A11) into A Pod",
+        "Commons->D_Wing": "Walk west through the Commons into D Wing",
+        "D_Wing->Commons": "Walk east through D Wing into the Commons",
+        "D_Wing->E_Wing": "Continue west through D Wing into E Wing",
+        "E_Wing->D_Wing": "Walk east through E Wing back into D Wing",
+        "D_Wing->F_Wing": "Continue west through D Wing into F Wing",
+        "F_Wing->D_Wing": "Walk east through F Wing back into D Wing",
+        "Z_Pod->Commons":
+          "Walk north through Z Pod into A Pod, then continue to the Commons",
+        "Commons->Z_Pod":
+          "Walk south through the Commons, through A Pod, into Z Pod",
+      };
+      const STAIR_LOC = {
+        C_Stair: "the C stairwell (inside C Pod, near C108/C115)",
+        B_Stair:
+          "the B stairwell (at the B Pod / Commons junction, near B114/B129)",
+        A_Stair: "the A stairwell (in the B Pod / A Pod connector, near B101)",
+        Z_Stair:
+          "the Z stairwell (at the A Pod / Z Pod junction, near A10/Z127)",
+      };
+
+      // Populate autocomplete
+      Object.entries(displayRooms)
+        .sort(([a], [b]) =>
+          a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+        )
+        .forEach(([room, label]) => {
+          const opt = document.createElement("option");
+          opt.value = room;
+          opt.textContent = label;
+          datalist.appendChild(opt);
+        });
+
+      [startInput, endInput].forEach((inp) => {
+        inp.addEventListener("input", () => {
+          const pos = inp.selectionStart;
+          inp.value = inp.value.toUpperCase();
+          inp.setSelectionRange(pos, pos);
+        });
+      });
+
+      goBtn.addEventListener("click", go);
+      [startInput, endInput].forEach((inp) =>
+        inp.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") go();
+        }),
+      );
+
+      function getPodKey(node) {
+        if (!node) return null;
+        const m = node.match(/^([A-Z](?:_Pod|_Wing))_\d$/);
+        if (m) return m[1];
+        if (/^Commons_\d$/.test(node)) return "Commons";
+        return null;
+      }
+      function podDisplay(node) {
+        if (!node) return "";
+        const k = getPodKey(node);
+        return k
+          ? POD_NAMES[k] || k.replace(/_/g, " ")
+          : node.replace(/_/g, " ");
+      }
+      function floorLabel(f) {
+        return f === 1 ? "1st floor" : f === 2 ? "2nd floor" : "3rd floor";
+      }
+      function walkDesc(from, to) {
+        const fk =
+          getPodKey(from) || (from?.startsWith("Commons") ? "Commons" : null);
+        const tk =
+          getPodKey(to) || (to?.startsWith("Commons") ? "Commons" : null);
+        if (!fk || !tk) return `Walk to ${podDisplay(to)}`;
+        return (
+          WALK_DESC[`${fk}->${tk}`] ||
+          `Walk from ${POD_NAMES[fk] || fk} to ${POD_NAMES[tk] || tk}`
+        );
+      }
+
+      function go() {
+        const start = startInput.value.trim().toUpperCase();
+        const end = endInput.value.trim().toUpperCase();
+        dirBox.className = "directions-box";
+        dirBox.innerHTML = "";
+
+        if (!start || !end)
+          return showError("Enter both a start room and destination.");
+        if (start === end) return showError("You're already there! 🎉");
+        if (!schoolGraph[start]) return showError(`Room "${start}" not found.`);
+        if (!schoolGraph[end]) return showError(`Room "${end}" not found.`);
+
+        const path = findShortestPath(schoolGraph, start, end);
+        if (!path) return showError("No route found between those rooms.");
+
+        const startFloor = getRoomFloor(start) || 1;
+        const endFloor = getRoomFloor(end) || 1;
+        let prevFloor = startFloor;
+        let prevPod = schoolGraph[start]?.[0] || null;
+        let stairCount = 0;
+        const steps = [];
+
+        steps.push({
+          icon: "📍",
+          text: `Start at <strong>${displayRooms[start] || start}</strong>`,
+          sub: `${floorLabel(startFloor)} · ${podDisplay(prevPod)}`,
+        });
+
+        for (let i = 1; i < path.length; i++) {
+          const node = path[i];
+          if (STAIR_NODES.has(node)) {
+            stairCount++;
+            let toFloor = prevFloor;
+            for (let j = i + 1; j < path.length; j++) {
+              const f = getRoomFloor(path[j]);
+              if (f !== null) {
+                toFloor = f;
+                break;
+              }
+            }
+            const dir = toFloor > prevFloor ? "up" : "down";
+            const loc =
+              STAIR_LOC[node] || `the ${node.replace("_Stair", "")} stairwell`;
+            steps.push({
+              icon: toFloor > prevFloor ? "⬆️" : "⬇️",
+              text: `Take ${loc} ${dir} to the <strong>${floorLabel(toFloor)}</strong>`,
+              sub: `Look for signs labeled "${node.replace("_Stair", "")}"`,
+            });
+            prevFloor = toFloor;
+            continue;
+          }
+          if (
+            /^[A-Z](?:_Pod|_Wing)_\d$/.test(node) ||
+            /^Commons_\d$/.test(node)
+          ) {
+            const pk = getPodKey(prevPod);
+            const ck =
+              getPodKey(node) ||
+              (node.startsWith("Commons") ? "Commons" : null);
+            if (pk && ck && pk === ck) {
+              prevPod = node;
+              continue;
+            }
+            steps.push({
+              icon: "🚶",
+              text: walkDesc(prevPod, node),
+              sub: `Floor ${prevFloor}`,
+            });
+            prevPod = node;
+            continue;
+          }
+          if (node === end) {
+            steps.push({
+              icon: "🎯",
+              text: `Arrive at <strong>${displayRooms[end] || end}</strong>`,
+              sub: `${floorLabel(endFloor)} · ${podDisplay(schoolGraph[end]?.[0] || "")}`,
+            });
+          }
+        }
+
+        const floors = [...new Set([startFloor, endFloor])].sort();
+        const floorBadge =
+          floors.length > 1
+            ? `<span class="badge badge-warn">Floors ${floors.join(" → ")}</span>`
+            : `<span class="badge badge-ok">Floor ${floors[0]}</span>`;
+        const stairBadge =
+          stairCount > 0
+            ? `<span class="badge badge-stair">🪜 ${stairCount} stairwell${stairCount > 1 ? "s" : ""}</span>`
+            : "";
+
+        let html = `<div class="dir-header"><div class="dir-title">Route: <strong>${displayRooms[start] || start}</strong> → <strong>${displayRooms[end] || end}</strong></div><div class="dir-badges">${floorBadge}${stairBadge}</div></div><ol class="dir-steps">`;
+        steps.forEach((s) => {
+          html += `<li class="dir-step"><span class="step-icon">${s.icon}</span><div class="step-body"><div class="step-main">${s.text}</div>${s.sub ? `<div class="step-sub">${s.sub}</div>` : ""}</div></li>`;
+        });
+        html += "</ol>";
+        dirBox.className = "directions-box dir-success";
+        dirBox.innerHTML = html;
+      }
+
+      function showError(msg) {
+        dirBox.className = "directions-box dir-error";
+        dirBox.innerHTML = `<p>⚠️ ${msg}</p>`;
+      }
+    </script>
+  </body>
+</html>
