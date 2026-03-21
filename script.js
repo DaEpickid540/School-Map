@@ -10,7 +10,6 @@ import { displayRooms } from "./displayRooms.js";
 
 const POD_NAMES = {
   A_Pod: "A Pod",
-  Lobby: "Front Office / Lobby",
   B_Pod: "B Pod",
   C_Pod: "C Pod",
   Z_Pod: "Z Pod",
@@ -144,7 +143,6 @@ function getAfterPrimaryStairHint(stairNode, destRoom, destPod) {
 // ── Pod key helpers ──────────────────────────────────────────────
 function getPodKey(node) {
   if (!node) return null;
-  if (node === 'Lobby_1' || node === 'Lobby_2') return 'Lobby';
   const m = node.match(/^([A-Z](?:_Pod|_Wing))_\d$/);
   if (m) return m[1];
   if (node.startsWith("Commons_")) return "Commons";
@@ -187,7 +185,7 @@ function getWalkDescription(fromNode, toNode, floor) {
     "C_Pod->B_Pod": `Walk southeast from C Pod toward B Pod, passing through the C101/C102 area near the C Pod / Commons junction.`,
     "A_Pod->B_Pod": `Walk northwest through the A–B connector hallway. <strong>Note:</strong> the A2 stairwell (blue dot) is located in this connector between B Pod and A Pod — B Pod is on the right at the top of A2, A Pod is on the left. The A Stairwell (A1, the <em>inside</em> stairwell) is also accessible from within A Pod near A115/A108. Pass near B100 and B125b (Maker Space).`,
     "B_Pod->A_Pod": `Walk southeast through the connector hallway from B Pod into A Pod. <strong>Note:</strong> the A2 stairwell (blue dot) is in this connector — B Pod is on the right at the top of A2, A Pod is on the left. Pass near B100 / B125b (Maker Space).`,
-    "A_Pod->Z_Pod": `Walk south through A Pod toward the lobby area. Pass through the A Pod entrance (near A11 Front Desk / A122 Student Entry). The Z Stairwell (Z1) is at this A Pod / Z Pod junction near A122 / Z127. The Z2 stairwell (secondary) is also in this connector area.`,
+    "A_Pod->Z_Pod": `Walk south through A Pod toward the lobby area. Pass through the A Pod entrance (near A11 Front Desk / A122). The Z Stairwell (Z1) is at this A Pod / Z Pod junction near A122 / Z127. The Z2 stairwell (secondary) is also in this connector area.`,
     "Z_Pod->A_Pod": `Walk north through Z Pod past the lobby (near Z122 / A11 Front Desk). The Z1 stairwell and Z2 secondary stairwell are both at this junction.`,
     "Commons->D_Wing": `Walk west from the Commons into D Wing. <strong>Shortcut:</strong> from C Pod, use the cutthrough hallway at C115 which leads directly in front of D101 (Small Cafeteria), bypassing the main Commons.`,
     "D_Wing->Commons": `Walk east through D Wing back into the Commons. D Wing contains the auditorium (D138), gym (D123), pool (D136), and cafeteria (D150 / D101).`,
@@ -196,11 +194,6 @@ function getWalkDescription(fromNode, toNode, floor) {
     "D_Wing->F_Wing": `Continue west through D Wing into F Wing.`,
     "F_Wing->D_Wing": `Walk east through F Wing back into D Wing.`,
     "Z_Pod->Commons": `Walk north through Z Pod, through the Z Pod / A Pod junction, continue north through A Pod, through the A–B connector (past A2 stairwell), into the Commons via B Pod.`,
-    // ── Front office lobby transitions ───────────────────────────
-    "A_Pod->Lobby": `Walk toward the front of A Pod — follow the hallway past the display cases to the front office lobby`,
-    "Lobby->A_Pod": `Exit the front office lobby and walk down the hallway past the display cases into A Pod (A100 area)`,
-    "C_Pod->Lobby": `Walk through C Pod toward the Harvard Room (C125) area — continue down that hallway to the front office lobby`,
-    "Lobby->C_Pod": `Exit the front office lobby and walk down the hallway past the Harvard Room (C125) area into C Pod (C100 area)`,
     "Commons->Z_Pod": `From the Commons, walk south through B Pod, through the A–B connector (past A2 stairwell), through A Pod, and south through the A Pod / Z Pod junction into Z Pod.`,
   };
 
@@ -221,8 +214,6 @@ const STAIR_LOCATIONS = {
     "the C Stairwell (C1) — the <strong>inside stairwell</strong> located within C Pod near C115 and C108",
   Z_Stair:
     "the Z Stairwell (Z1) — the <strong>inside stairwell</strong> located within Z Pod near Z115 and Z108",
-  Front_Stair:
-    "the front office stairwell — in the lobby/front office area near A11 (connects floors 1 and 2 only)",
 };
 
 const SECONDARY_STAIR_DESC = {
@@ -278,7 +269,7 @@ const ROOM_HINTS = {
   A115: "Hallway node — mid-hallway intersection in A Pod",
   A118: "Bathroom — near A115 hallway node",
   A119: "Hallway node — end of A Pod hallway",
-  A122: "Student Entry — main student entrance to A Pod",
+  A122: "A Pod hallway area — near the Z Pod / A Pod junction",
   A125: "Wing end, past A119",
   A126: "Wing end, past A119",
   A127: "Wing end, past A119",
@@ -287,7 +278,7 @@ const ROOM_HINTS = {
   Z115: "Hallway node — mid-hallway intersection in Z Pod",
   Z118: "Bathroom — near Z115 hallway node",
   Z119: "Hallway node — end of Z Pod hallway",
-  Z122: "Student Entry — main student entrance to Z Pod",
+  Z122: "Student Entry / Attendance — main student entrance, accessible from the Z Pod side",
   Z125: "Wing end, past Z119",
   Z126: "Wing end, past Z119",
   Z127: "Wing end, past Z119",
@@ -296,7 +287,7 @@ const ROOM_HINTS = {
   B115: "Hallway node — mid-hallway intersection in B Pod",
   B118: "Bathroom — near B115 hallway node",
   B119: "Hallway node — end of B Pod hallway",
-  B122: "Student Entry — main student entrance to B Pod",
+  B122: "B Pod hallway area",
   B125: "Dream Center — on the OPPOSITE side of B Pod from the main hallway, past B1/B115 stairwell",
   B125b:
     "Maker Space — in the A–B connector hallway area near the A2 stairwell",
@@ -349,8 +340,10 @@ const ROOM_HINTS = {
 
 // Admin rooms share the same hint
 const ADMIN_HINT =
-  "Admin suite — in the front office lobby area. Enter via the display cases hallway from A Pod or the Harvard Room hallway from C Pod, then turn right behind A11.";
+  "Admin suite — on the RIGHT-SIDE PATH behind A11 (Front Desk), opposite from the A1 stairwell entrance. Walk past A11 and take the right corridor.";
 for (let i = 14; i <= 32; i++) ROOM_HINTS[`A${i}`] = ADMIN_HINT;
+ROOM_HINTS["A32"] =
+  "Nurse's Office — accessible from A100 (the inter-pod corridor outside the main A Pod hallway)";
 const adminF2 = ["A51A", "A51B", "A52", "A53", "A53A", "A53B", "A53C", "A53D"];
 for (let i = 54; i <= 71; i++) adminF2.push(`A${i}`);
 adminF2.forEach((r) => {
@@ -454,7 +447,7 @@ function generateSteps(path, start, end) {
     }
 
     // ── Pod / wing hub ──────────────────────────────────────────
-    if (/^[A-Z](?:_Pod|_Wing)_\d$/.test(node) || /^Commons_\d$/.test(node) || node === 'Lobby_1' || node === 'Lobby_2') {
+    if (/^[A-Z](?:_Pod|_Wing)_\d$/.test(node) || /^Commons_\d$/.test(node)) {
       const pk = getPodKey(prevPodNode);
       const ck =
         getPodKey(node) || (node.startsWith("Commons") ? "Commons" : null);
