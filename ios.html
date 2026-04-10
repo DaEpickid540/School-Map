@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="en" data-theme="mason">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Install on iPhone — Mason Navigator</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" type="image/png" href="icons/favicon.ico" />
+    <style>
+      /* ── iOS guide page additions ───────────────────────────────
+         Only layout/component styles not already in style.css.
+         All colors reference CSS variables from the theme system.
+      ─────────────────────────────────────────────────────────── */
+
+      /* Single-column layout override for this page */
+      .ios-container {
+        max-width: 680px;
+        margin: 0 auto;
+        padding: 24px 16px 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* ── Hero banner ─────────────────────────────────────────── */
+      .ios-hero {
+        background: var(--accent);
+        padding: 56px 24px 72px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+      .ios-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 0, 0, 0.06) 2px,
+          rgba(0, 0, 0, 0.06) 4px
+        );
+        pointer-events: none;
+      }
+      .ios-hero::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 36px;
+        background: var(--bg);
+        border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+      }
+      .ios-hero-icon {
+        font-size: 3rem;
+        display: block;
+        margin-bottom: 16px;
+        animation: ios-float 3s ease-in-out infinite;
+        position: relative;
+        z-index: 1;
+      }
+      @keyframes ios-float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-8px);
+        }
+      }
+      .ios-hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 100px;
+        padding: 5px 14px;
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 20px;
+        position: relative;
+        z-index: 1;
+      }
+      .ios-hero h1 {
+        font-family: var(--display);
+        font-size: clamp(1.4rem, 5vw, 2.2rem);
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        color: #fff;
+        line-height: 1.2;
+        margin-bottom: 14px;
+        text-shadow: 0 0 30px var(--accent-glow);
+        position: relative;
+        z-index: 1;
+      }
+      .ios-hero p {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: rgba(255, 255, 255, 0.75);
+        max-width: 400px;
+        margin: 0 auto;
+        letter-spacing: 0.04em;
+        position: relative;
+        z-index: 1;
+      }
+
+      /* ── Prereq notice ───────────────────────────────────────── */
+      .prereq {
+        background: var(--card-bg);
+        border: 1px solid var(--accent);
+        border-radius: var(--radius-card);
+        padding: 18px 20px;
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        box-shadow: 0 0 12px var(--accent-glow);
+        position: relative;
+        clip-path: var(--card-clip);
+      }
+      .prereq::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 3px;
+        height: 100%;
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent-glow);
+      }
+      .prereq-icon {
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .prereq-title {
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--accent);
+        margin-bottom: 6px;
+      }
+      .prereq p {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: var(--text-dim);
+        line-height: 1.6;
+      }
+      .prereq strong {
+        color: var(--text);
+        font-weight: 700;
+      }
+
+      /* ── Section label ───────────────────────────────────────── */
+      .section-label {
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: var(--text-dim);
+        padding-left: 2px;
+        border-left: 2px solid var(--accent);
+        padding-left: 10px;
+      }
+
+      /* ── Step row ────────────────────────────────────────────── */
+      .step {
+        display: grid;
+        grid-template-columns: 48px 1fr;
+        gap: 0 16px;
+        opacity: 0;
+        transform: translateY(20px);
+        transition:
+          opacity 0.45s ease,
+          transform 0.45s ease;
+      }
+      .step.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .step:nth-child(1) {
+        transition-delay: 0.05s;
+      }
+      .step:nth-child(2) {
+        transition-delay: 0.12s;
+      }
+      .step:nth-child(3) {
+        transition-delay: 0.19s;
+      }
+      .step:nth-child(4) {
+        transition-delay: 0.26s;
+      }
+      .step:nth-child(5) {
+        transition-delay: 0.33s;
+      }
+      .step:nth-child(6) {
+        transition-delay: 0.4s;
+      }
+
+      .step-left {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .step-num {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: #fff;
+        font-family: var(--display);
+        font-size: 0.9rem;
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 0 16px var(--accent-glow);
+        position: relative;
+        z-index: 1;
+      }
+      .step-line {
+        width: 2px;
+        flex: 1;
+        min-height: 20px;
+        background: linear-gradient(to bottom, var(--accent), transparent);
+        opacity: 0.3;
+        margin-top: 4px;
+      }
+      .step:last-child .step-line {
+        display: none;
+      }
+
+      /* Step card reuses .card styles from style.css */
+      .step-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        padding: 20px 20px 22px;
+        margin-bottom: 8px;
+        position: relative;
+        clip-path: var(--card-clip);
+      }
+      .step-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 3px;
+        height: 100%;
+        background: var(--border);
+      }
+      .step-title {
+        font-family: var(--display);
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text);
+        margin-bottom: 8px;
+      }
+      .step-desc {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: var(--text-dim);
+        line-height: 1.65;
+        margin-bottom: 16px;
+      }
+      .step-desc strong {
+        color: var(--text);
+        font-weight: 700;
+      }
+      .step-desc:last-child {
+        margin-bottom: 0;
+      }
+
+      /* ── Screenshot placeholder ──────────────────────────────── */
+      .screenshot-slot {
+        background: var(--bg2);
+        border: 2px dashed var(--border);
+        border-radius: var(--radius-card);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 28px 20px;
+        cursor: pointer;
+        transition:
+          background 0.15s,
+          border-color 0.15s;
+        min-height: 200px;
+      }
+      .screenshot-slot.portrait {
+        min-height: 320px;
+      }
+      .screenshot-slot:hover {
+        background: var(--card-bg);
+        border-color: var(--accent);
+      }
+      .slot-icon {
+        font-size: 2rem;
+        opacity: 0.3;
+      }
+      .slot-label {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--text-dim);
+        text-align: center;
+        line-height: 1.5;
+      }
+      .slot-hint {
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        color: var(--text-dim);
+        opacity: 0.5;
+      }
+
+      /* ── Tip callout ─────────────────────────────────────────── */
+      .tip {
+        display: flex;
+        gap: 10px;
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-left: 2px solid var(--green);
+        border-radius: var(--radius-card);
+        padding: 10px 14px;
+        margin-top: 14px;
+      }
+      .tip-icon {
+        font-size: 0.9rem;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+      .tip p {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        line-height: 1.6;
+      }
+      .tip strong {
+        color: var(--text);
+        font-weight: 700;
+      }
+
+      /* ── Done card ───────────────────────────────────────────── */
+      .done-card {
+        background: var(--card-bg);
+        border: 1px solid var(--accent);
+        border-radius: var(--radius-card);
+        padding: 40px 28px;
+        text-align: center;
+        clip-path: var(--card-clip);
+        position: relative;
+        box-shadow: 0 0 24px var(--accent-glow);
+        opacity: 0;
+        transform: translateY(20px);
+        transition:
+          opacity 0.5s ease 0.2s,
+          transform 0.5s ease 0.2s;
+      }
+      .done-card.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .done-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 3px;
+        height: 100%;
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent-glow);
+      }
+      .done-icon {
+        font-size: 2.8rem;
+        display: block;
+        margin-bottom: 14px;
+      }
+      .done-card h2 {
+        font-family: var(--display);
+        font-size: 1.2rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin-bottom: 10px;
+        text-shadow: 0 0 16px var(--accent-glow);
+      }
+      .done-card p {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        max-width: 340px;
+        margin: 0 auto 24px;
+        line-height: 1.65;
+      }
+      .done-btn {
+        display: inline-block;
+        background: var(--accent);
+        color: #fff;
+        font-family: var(--display);
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        padding: 12px 28px;
+        border-radius: var(--radius-btn);
+        text-decoration: none;
+        clip-path: var(--btn-clip);
+        transition:
+          box-shadow 0.15s,
+          background 0.15s;
+        box-shadow: 0 0 12px var(--accent-glow);
+      }
+      .done-btn:hover {
+        background: var(--accent2);
+        box-shadow: 0 0 24px var(--accent-glow);
+      }
+
+      @media (max-width: 480px) {
+        .step {
+          grid-template-columns: 40px 1fr;
+          gap: 0 12px;
+        }
+        .step-num {
+          width: 40px;
+          height: 40px;
+          font-size: 0.8rem;
+        }
+        .step-card {
+          padding: 16px 16px 18px;
+        }
+        .ios-hero {
+          padding: 40px 20px 60px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Settings trigger + sidebar (identical to index.html) -->
+    <button class="settings-trigger" id="settingsTrigger" aria-label="Settings">
+      ⚙
+    </button>
+    <div class="settings-overlay" id="settingsOverlay"></div>
+    <aside class="settings-sidebar" id="settingsSidebar">
+      <div class="settings-sidebar-header">
+        <h3>// Themes</h3>
+        <button class="settings-close" id="settingsClose">✕</button>
+      </div>
+      <div class="settings-body">
+        <div class="settings-group">
+          <label class="group-label">🟢 Mason Comets</label>
+          <div class="theme-grid">
+            <button class="theme-btn" data-theme="mason">
+              <div class="swatch swatch-mason"></div>
+              Comets Light
+            </button>
+            <button class="theme-btn" data-theme="mason-dark">
+              <div class="swatch swatch-mason-dark"></div>
+              Comets Dark
+            </button>
+          </div>
+        </div>
+        <div class="settings-group">
+          <label class="group-label">⚡ Console</label>
+          <div class="theme-grid">
+            <button class="theme-btn" data-theme="cyberpunk">
+              <div class="swatch swatch-cyberpunk"></div>
+              Cyberpunk
+            </button>
+            <button class="theme-btn" data-theme="infrared">
+              <div class="swatch swatch-infrared"></div>
+              Infrared
+            </button>
+            <button class="theme-btn" data-theme="rogue">
+              <div class="swatch swatch-rogue"></div>
+              Rogue
+            </button>
+            <button class="theme-btn" data-theme="void">
+              <div class="swatch swatch-void"></div>
+              Void
+            </button>
+          </div>
+        </div>
+        <div class="settings-group">
+          <label class="group-label">🌈 Color</label>
+          <div class="theme-grid">
+            <button class="theme-btn" data-theme="ember">
+              <div class="swatch swatch-ember"></div>
+              Ember
+            </button>
+            <button class="theme-btn" data-theme="gold-rush">
+              <div class="swatch swatch-gold-rush"></div>
+              Gold Rush
+            </button>
+            <button class="theme-btn" data-theme="toxic">
+              <div class="swatch swatch-toxic"></div>
+              Toxic
+            </button>
+            <button class="theme-btn" data-theme="sakura">
+              <div class="swatch swatch-sakura"></div>
+              Sakura
+            </button>
+            <button class="theme-btn" data-theme="ocean">
+              <div class="swatch swatch-ocean"></div>
+              Ocean
+            </button>
+            <button class="theme-btn" data-theme="aurora">
+              <div class="swatch swatch-aurora"></div>
+              Aurora
+            </button>
+            <button class="theme-btn" data-theme="copper">
+              <div class="swatch swatch-copper"></div>
+              Copper
+            </button>
+            <button class="theme-btn" data-theme="midnight">
+              <div class="swatch swatch-midnight"></div>
+              Midnight
+            </button>
+          </div>
+        </div>
+        <div class="settings-group">
+          <label class="group-label">☀ Light</label>
+          <div class="theme-grid">
+            <button class="theme-btn" data-theme="arctic">
+              <div class="swatch swatch-arctic"></div>
+              Arctic
+            </button>
+            <button class="theme-btn" data-theme="solar">
+              <div class="swatch swatch-solar"></div>
+              Solar
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-top">
+        <div>
+          <h1>🏫 Mason Navigator</h1>
+          <p>Find the fastest route to any classroom.</p>
+        </div>
+      </div>
+      <nav class="navbar">
+        <a href="index.html" class="nav-link">Navigate</a>
+        <a href="why.html" class="nav-link">Why</a>
+        <a href="ios.html" class="nav-link active">iPhone Install</a>
+      </nav>
+    </header>
+
+    <!-- Hero -->
+    <div class="ios-hero">
+      <span class="ios-hero-icon">📱</span>
+      <div class="ios-hero-badge">📱 iPhone Install Guide</div>
+      <h1>Add to Your<br />Home Screen</h1>
+      <p>
+        Get instant access to your route — no App Store needed. Works offline
+        too.
+      </p>
+    </div>
+
+    <main class="ios-container">
+      <!-- Before you start -->
+      <div class="prereq">
+        <div class="prereq-icon">ℹ️</div>
+        <div>
+          <div class="prereq-title">Before You Start</div>
+          <p>
+            You'll need <strong>Safari</strong> on your iPhone — this only works
+            through Safari, not Chrome or other browsers. Make sure you're
+            connected to Wi-Fi when you first install it.
+          </p>
+        </div>
+      </div>
+
+      <div class="section-label">Step-by-step instructions</div>
+
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">1</div>
+          <div class="step-line"></div>
+        </div>
+        <div>
+          <div class="step-card">
+            <div class="step-title">
+              Open Safari &amp; navigate to the kiosk
+            </div>
+            <div class="step-desc">
+              Open <strong>Safari</strong> on your iPhone and go to the Mason
+              Navigator URL. You can get this by scanning the QR code shown on
+              the kiosk display at school, or by typing the address directly.
+            </div>
+            <div
+              class="screenshot-slot portrait"
+              title="Replace with screenshot"
+            >
+              <div class="slot-icon">📷</div>
+              <div class="slot-label">
+                Screenshot: Safari address bar<br />showing the Mason Navigator
+                URL
+              </div>
+              <div class="slot-hint">
+                Replace this placeholder with your photo
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">2</div>
+          <div class="step-line"></div>
+        </div>
+        <div>
+          <div class="step-card">
+            <div class="step-title">Tap the Share button</div>
+            <div class="step-desc">
+              At the bottom of Safari, tap the <strong>Share button</strong> —
+              it looks like a box with an arrow pointing up (↑). If you don't
+              see the toolbar, scroll up slightly on the page to reveal it.
+            </div>
+            <div class="screenshot-slot portrait">
+              <div class="slot-icon">📷</div>
+              <div class="slot-label">
+                Screenshot: Bottom Safari toolbar<br />with Share button
+                highlighted
+              </div>
+              <div class="slot-hint">
+                Replace this placeholder with your photo
+              </div>
+            </div>
+            <div class="tip">
+              <div class="tip-icon">💡</div>
+              <p>
+                The Share button is the <strong>middle icon</strong> in the
+                Safari bottom bar — a square with an upward arrow. It's not the
+                same as the bookmark icon.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">3</div>
+          <div class="step-line"></div>
+        </div>
+        <div>
+          <div class="step-card">
+            <div class="step-title">
+              Hit the 3 dots "More" option then hit "Add to Home Screen"
+            </div>
+            <div class="step-desc">
+              A menu will slide up from the bottom. Scroll down through the
+              options until you see <strong>"Add to Home Screen"</strong> with a
+              plus icon. Tap it.
+            </div>
+            <div class="screenshot-slot portrait">
+              <div class="slot-icon">📷</div>
+              <div class="slot-label">
+                Screenshot: Share sheet with<br />"Add to Home Screen" option
+                visible
+              </div>
+              <div class="slot-hint">
+                Replace this placeholder with your photo
+              </div>
+            </div>
+            <div class="tip">
+              <div class="tip-icon">💡</div>
+              <p>
+                This option is <strong>below the row of app icons</strong> in
+                the share sheet. You may need to scroll down a bit — it's
+                usually about halfway down the list.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">4</div>
+          <div class="step-line"></div>
+        </div>
+        <div>
+          <div class="step-card">
+            <div class="step-title">Name it and tap "Add"</div>
+            <div class="step-desc">
+              A screen will appear letting you name the app. It should already
+              say <strong>"Mason Navigator"</strong> — leave it as-is or shorten
+              it if you prefer. Then tap <strong>Add</strong> in the top-right
+              corner.
+            </div>
+            <div class="screenshot-slot portrait">
+              <div class="slot-icon">📷</div>
+              <div class="slot-label">
+                Screenshot: "Add to Home Screen"<br />naming screen with Add
+                button
+              </div>
+              <div class="slot-hint">
+                Replace this placeholder with your photo
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">5</div>
+          <div class="step-line"></div>
+        </div>
+        <div>
+          <div class="step-card">
+            <div class="step-title">Find the icon on your Home Screen</div>
+            <div class="step-desc">
+              Mason Navigator will appear as an icon on your iPhone Home Screen
+              — just like a regular app. It'll have the school icon and the name
+              you chose. Press the Home button (or swipe up) to go back and find
+              it.
+            </div>
+            <div class="screenshot-slot portrait">
+              <div class="slot-icon">📷</div>
+              <div class="slot-label">
+                Screenshot: iPhone Home Screen<br />with Mason Navigator icon
+                visible
+              </div>
+              <div class="slot-hint">
+                Replace this placeholder with your photo
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="step">
+        <div class="step-left">
+          <div class="step-num">6</div>
+          <div class="step-line"></div>
+        </div>
+        <div>
+          <div class="step-card">
+            <div class="step-title">Open it — it works like a real app!</div>
+            <div class="step-desc">
+              Tap the icon to launch Mason Navigator. It opens
+              <strong>full screen</strong>, with no Safari address bar or tabs —
+              just the app. Once loaded, it works even without a network
+              connection.
+            </div>
+            <div class="screenshot-slot portrait">
+              <div class="slot-icon">📷</div>
+              <div class="slot-label">
+                Screenshot: Mason Navigator open<br />full screen on iPhone
+              </div>
+              <div class="slot-hint">
+                Replace this placeholder with your photo
+              </div>
+            </div>
+            <div class="tip">
+              <div class="tip-icon">⚡</div>
+              <p>
+                Route links from the kiosk's QR code
+                <strong>expire after 30 minutes</strong> — so scan and open them
+                right away. The installed app itself never expires.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Done card -->
+      <div class="done-card">
+        <span class="done-icon">🎉</span>
+        <h2>You're all set!</h2>
+        <p>
+          Mason Navigator is now on your Home Screen. Scan any QR code from a
+          kiosk to instantly load your route.
+        </p>
+        <a href="index.html" class="done-btn">← Back to Navigator</a>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>Mason City Schools · Student Navigation Project · Sarvin Sukhe</p>
+      <a
+        href="https://docs.google.com/forms/d/e/1FAIpQLScU9ZAX9jwBVtQoPmGvyTtTld1GZZsP_Vv1fyH1LrGFXhdXjA/viewform?usp=publish-editor"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="mason-link"
+        >🐛 Report a Bug</a
+      >
+    </footer>
+
+    <script src="theme.js"></script>
+    <script>
+      // Scroll-triggered reveal for steps and done card
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) entry.target.classList.add("visible");
+          });
+        },
+        { threshold: 0.1, rootMargin: "0px 0px -40px 0px" },
+      );
+      document
+        .querySelectorAll(".step, .done-card")
+        .forEach((el) => observer.observe(el));
+    </script>
+  </body>
+</html>
