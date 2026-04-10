@@ -9,11 +9,12 @@ import { F_Rooms } from "./F_Rooms.js";
 const specialNames = {
   // ── A Pod Floor 1 ──────────────────────────────────────────
   A11: "A11 – Front Desk",
+  A32: "A32 – Nurse's Office",
   A118: "A118 – Bathroom (A Pod)",
-  A122: "A122 – Student Entrance Hallway (A Pod)",
+  A122: "A122 – A Pod Hallway",
   // ── B Pod Floor 1 ──────────────────────────────────────────
   B118: "B118 – Bathroom (B Pod)",
-  B122: "B122 – Student Entrance Hallway (B Pod)",
+  B122: "B122 – B Pod Hallway",
   B125: "B125 – Dream Center",
   B125b: "B125b – Maker Space",
   B125c: "B125c – Comet Cafe Seating / Library",
