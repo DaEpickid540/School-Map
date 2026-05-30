@@ -141,6 +141,10 @@
           placeholder="e.g. A115"
           autocomplete="off"
         />
+
+        <div id="waypoints" class="wp-wrap"></div>
+        <button id="addStopBtn" type="button" class="link-btn">➕ Add stop</button>
+
         <label for="end">Destination Room</label>
         <input
           id="end"
@@ -150,6 +154,9 @@
         />
         <datalist id="rooms"></datalist>
         <button id="goBtn">🗺️ Get Directions</button>
+        <button id="favBtn" type="button" class="secondary-btn">
+          ⭐ Favorite routes
+        </button>
 
         <label class="a11y-row">
           <input type="checkbox" id="a11yToggle" />

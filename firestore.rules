@@ -1,0 +1,12 @@
+rules_version = '2';
+
+// Shared routes are public, append-only: anyone can create a new shared route
+// and read any route by its id, but no one can edit or delete existing ones.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /routes/{id} {
+      allow read, create: if true;
+      allow update, delete: if false;
+    }
+  }
+}

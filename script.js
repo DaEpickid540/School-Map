@@ -8,6 +8,7 @@ import {
 import { findShortestPath } from "./pathfinding.js";
 import { displayRooms } from "./displayRooms.js";
 import { GROQ_API_KEY, GROQ_MODEL, GROQ_ENDPOINT } from "./aiConfig.js";
+import { isCloudEnabled, publishRoute, fetchRoute } from "./cloud.js";
 
 const POD_NAMES = {
   A_Pod: "A Pod",
@@ -698,7 +699,9 @@ function breadcrumbForNode(node) {
   return null;
 }
 
-function buildBreadcrumb(path, start, end) {
+// `fullPath` is the concatenated node path; `stops` is the list of room codes
+// the user chose ([start, ...waypoints, end]). Waypoints get a 🚩 flag chip.
+function buildBreadcrumb(fullPath, stops) {
   const crumbs = [];
   const push = (c) => {
     if (!c) return;
@@ -706,10 +709,14 @@ function buildBreadcrumb(path, start, end) {
     if (last && last.label === c.label) return; // collapse repeats
     crumbs.push(c);
   };
-  push({ icon: "🟢", label: start });
-  // Intermediate hub/stair nodes only (skip the endpoint room nodes).
-  for (let i = 1; i < path.length - 1; i++) push(breadcrumbForNode(path[i]));
-  push({ icon: "🏁", label: end });
+  const waypoints = new Set(stops.slice(1, -1));
+  push({ icon: "🟢", label: stops[0] });
+  for (let i = 1; i < fullPath.length - 1; i++) {
+    const node = fullPath[i];
+    if (waypoints.has(node)) push({ icon: "🚩", label: node });
+    else push(breadcrumbForNode(node));
+  }
+  push({ icon: "🏁", label: stops[stops.length - 1] });
   return crumbs;
 }
 
@@ -724,6 +731,70 @@ function renderBreadcrumb(crumbs) {
     )
     .join('<span class="crumb-sep">›</span>');
   return `<div class="dir-breadcrumb" aria-label="Route landmarks">${items}</div>`;
+}
+
+// ── Multi-leg route assembly ─────────────────────────────────────
+// `stops` is [start, ...waypoints, end]. Each consecutive pair is routed with
+// the normal pathfinder, then the legs are stitched into one continuous set of
+// steps with a 🚩 waypoint marker between legs. Returns {steps, stairCount,
+// floors, fullPath} or {error}.
+function buildMultiLeg(stops) {
+  for (const s of stops) {
+    if (!s) return { error: "Please fill in every room box (or remove empty stops)." };
+    if (!schoolGraph[s])
+      return { error: `Room "${s}" not found. Check the spelling.` };
+  }
+  for (let i = 1; i < stops.length; i++) {
+    if (stops[i] === stops[i - 1])
+      return {
+        error: `"${stops[i]}" is listed twice in a row — give consecutive stops different rooms.`,
+      };
+  }
+
+  const allSteps = [];
+  let stairCount = 0;
+  const floorSet = new Set();
+  const fullPath = [];
+
+  for (let i = 0; i < stops.length - 1; i++) {
+    const a = stops[i];
+    const b = stops[i + 1];
+    const path = findShortestPath(schoolGraph, a, b);
+    if (!path) return { error: `No route could be found from ${a} to ${b}.` };
+
+    const leg = generateSteps(path, a, b);
+    stairCount += leg.stairCount;
+    leg.floors.forEach((f) => floorSet.add(f));
+    // Drop the duplicated junction node shared with the previous leg.
+    fullPath.push(...(fullPath.length ? path.slice(1) : path));
+
+    const startStep = leg.steps[0];
+    const arriveStep = leg.steps[leg.steps.length - 1];
+    const middle = leg.steps.slice(1, -1);
+
+    if (i === 0) allSteps.push(startStep);
+    allSteps.push(...middle);
+
+    if (i < stops.length - 2) {
+      // Intermediate waypoint: a flagged checkpoint instead of "Arrive".
+      const next = stops[i + 2];
+      allSteps.push({
+        icon: "🚩",
+        text: `Waypoint ${i + 1}: reach <strong>${
+          displayRooms[b] || b
+        }</strong>, then keep going toward <strong>${
+          displayRooms[next] || next
+        }</strong>`,
+        sub: [`Stop ${i + 1} of ${stops.length - 2}`, getArrivalHint(b)]
+          .filter(Boolean)
+          .join(" · "),
+      });
+    } else {
+      allSteps.push(arriveStep);
+    }
+  }
+
+  return { steps: allSteps, stairCount, floors: [...floorSet].sort(), fullPath };
 }
 
 // ── HTML → speakable plain text (for text-to-speech) ─────────────
@@ -747,6 +818,9 @@ const aiKeyInput = document.getElementById("aiKey");
 const aiKeySave = document.getElementById("aiKeySave");
 const aiResult = document.getElementById("aiResult");
 const aiStatus = document.getElementById("aiStatus");
+const waypointWrap = document.getElementById("waypoints");
+const addStopBtn = document.getElementById("addStopBtn");
+const favBtn = document.getElementById("favBtn");
 
 Object.entries(displayRooms)
   .sort(([a], [b]) =>
@@ -774,49 +848,60 @@ goBtn.addEventListener("click", go);
   }),
 );
 
-// Keeps the most recent route's steps around for text-to-speech.
+// Keeps the most recent route around for text-to-speech and sharing.
 let lastSteps = [];
+let lastStops = [];
+
+// Gather the current start, any waypoints, and the end from the inputs.
+function currentStops() {
+  const wps = [...(waypointWrap?.querySelectorAll(".wp-input") || [])]
+    .map((i) => i.value.trim().toUpperCase())
+    .filter(Boolean);
+  return [
+    startInput.value.trim().toUpperCase(),
+    ...wps,
+    endInput.value.trim().toUpperCase(),
+  ];
+}
 
 function go() {
-  const start = startInput.value.trim().toUpperCase();
-  const end = endInput.value.trim().toUpperCase();
-  renderRoute(start, end);
+  renderRoute(currentStops());
 }
 
 // ── Route rendering ──────────────────────────────────────────────
-// Validates the two rooms, computes the path, and paints the directions
-// (breadcrumb + steps + share / read-aloud actions). Returns true on success.
-function renderRoute(start, end, { speak } = {}) {
+// Accepts a stops array [start, ...waypoints, end], computes the (possibly
+// multi-leg) route, and paints the directions: legend, breadcrumb, steps, and
+// share / read-aloud actions. Returns true on success.
+function renderRoute(stops, { speak } = {}) {
   stopSpeaking();
   dirBox.className = "directions-box";
   dirBox.innerHTML = "";
   lastSteps = [];
+  lastStops = [];
 
-  if (!start || !end) {
+  // Normalise: uppercase, then drop blank intermediate stops.
+  stops = (Array.isArray(stops) ? stops : [stops])
+    .map((s) => (s || "").trim().toUpperCase())
+    .filter((s, i, arr) => i === 0 || i === arr.length - 1 || s !== "");
+
+  if (stops.length < 2 || !stops[0] || !stops[stops.length - 1]) {
     showError("Please enter both a start room and destination.");
     return false;
   }
-  if (start === end) {
+  if (stops.length === 2 && stops[0] === stops[1]) {
     showError("You're already there! 🎉");
     return false;
   }
-  if (!schoolGraph[start]) {
-    showError(`Room "${start}" not found. Check the spelling.`);
-    return false;
-  }
-  if (!schoolGraph[end]) {
-    showError(`Room "${end}" not found. Check the spelling.`);
+
+  const result = buildMultiLeg(stops);
+  if (result.error) {
+    showError(result.error);
     return false;
   }
 
-  const path = findShortestPath(schoolGraph, start, end);
-  if (!path) {
-    showError("No route could be found between those rooms.");
-    return false;
-  }
-
-  const { steps, stairCount, floors } = generateSteps(path, start, end);
+  const { steps, stairCount, floors, fullPath } = result;
   lastSteps = steps;
+  lastStops = stops;
 
   const floorBadge =
     floors.length > 1
@@ -828,18 +913,21 @@ function renderRoute(start, end, { speak } = {}) {
           stairCount > 1 ? "s" : ""
         }</span>`
       : "";
+  const legBadge =
+    stops.length > 2
+      ? `<span class="badge badge-stair">🚩 ${stops.length - 1} legs</span>`
+      : "";
 
   // ── Wall-color legend ───────────────────────────────────────────
-  // Collect every colored pod this route passes through (start, end, and any
-  // pod hub along the way) so the user can match wall paint to pod as they go.
+  // Collect every colored pod this route passes through so the user can match
+  // wall paint to pod as they go.
   const routePodKeys = new Set();
   const addPodKey = (node) => {
     const k = getPodKey(node) || getPodKey(allRooms[node] || "");
     if (k && POD_COLORS[k]) routePodKeys.add(k);
   };
-  path.forEach(addPodKey);
-  addPodKey(start);
-  addPodKey(end);
+  fullPath.forEach(addPodKey);
+  stops.forEach(addPodKey);
 
   const legend = routePodKeys.size
     ? `<div class="dir-legend">${[...routePodKeys]
@@ -850,20 +938,23 @@ function renderRoute(start, end, { speak } = {}) {
         .join("")}</div>`
     : "";
 
-  const breadcrumb = renderBreadcrumb(buildBreadcrumb(path, start, end));
+  const breadcrumb = renderBreadcrumb(buildBreadcrumb(fullPath, stops));
+
+  const titleInner = stops
+    .map((s) => `<strong>${displayRooms[s] || s}</strong>`)
+    .join(" → ");
 
   const actions = `
     <div class="dir-actions">
       <button type="button" class="dir-action" id="readBtn">🔊 Read aloud</button>
       <button type="button" class="dir-action" id="shareBtn">🔗 Share route</button>
+      <button type="button" class="dir-action" id="favThisBtn">⭐ Save as favorite</button>
     </div>`;
 
   let html = `
     <div class="dir-header">
-      <div class="dir-title">Route: <strong>${
-        displayRooms[start] || start
-      }</strong> → <strong>${displayRooms[end] || end}</strong></div>
-      <div class="dir-badges">${floorBadge}${stairBadge}</div>
+      <div class="dir-title">Route: ${titleInner}</div>
+      <div class="dir-badges">${floorBadge}${stairBadge}${legBadge}</div>
       ${legend}
       ${breadcrumb}
       ${actions}
@@ -889,10 +980,13 @@ function renderRoute(start, end, { speak } = {}) {
   dirBox.querySelector("#readBtn")?.addEventListener("click", toggleSpeaking);
   dirBox
     .querySelector("#shareBtn")
-    ?.addEventListener("click", () => shareRoute(start, end));
+    ?.addEventListener("click", () => openShareModal(stops));
+  dirBox
+    .querySelector("#favThisBtn")
+    ?.addEventListener("click", () => saveCurrentAsFavorite(stops));
 
   // Reflect the chosen route in the URL so it can be shared / bookmarked.
-  updateUrl(start, end);
+  updateUrl(stops);
 
   // Auto-read aloud when accessibility mode is on (or when asked explicitly).
   if (speak ?? accessibilityOn()) speakRoute();
@@ -968,41 +1062,147 @@ function setReadButton(speaking) {
 }
 
 // ── Route sharing ────────────────────────────────────────────────
-function buildShareUrl(start, end) {
+// A local (no-cloud) share URL encodes the whole route as ?stops=A,B,C.
+function buildStopsUrl(stops) {
   const u = new URL(window.location.href);
-  u.search = `?from=${encodeURIComponent(start)}&to=${encodeURIComponent(end)}`;
+  u.search = `?stops=${encodeURIComponent(stops.join(","))}`;
   u.hash = "";
   return u.toString();
 }
 
-function updateUrl(start, end) {
+// A short cloud share URL (?r=<id>) — only when Firebase is configured.
+function buildCloudUrl(id) {
+  const u = new URL(window.location.href);
+  u.search = `?r=${encodeURIComponent(id)}`;
+  u.hash = "";
+  return u.toString();
+}
+
+function updateUrl(stops) {
   try {
-    history.replaceState(null, "", buildShareUrl(start, end));
+    history.replaceState(null, "", buildStopsUrl(stops));
   } catch {
     /* replaceState can throw on file:// — non-fatal */
   }
 }
 
-async function shareRoute(start, end) {
-  const url = buildShareUrl(start, end);
-  const label = `${displayRooms[start] || start} → ${displayRooms[end] || end}`;
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: "Mason Navigator route",
-        text: `Walking directions: ${label}`,
-        url,
-      });
-      return;
-    } catch {
-      /* user cancelled or share failed — fall through to copy */
-    }
+function routeLabel(stops) {
+  return stops.map((s) => displayRooms[s] || s).join(" → ");
+}
+
+// Lazy-load a QR generator (UMD) from a CDN and render an SVG into `el`.
+let _qrLoader = null;
+function loadQrLib() {
+  if (window.qrcode) return Promise.resolve(window.qrcode);
+  if (!_qrLoader) {
+    _qrLoader = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src =
+        "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js";
+      s.onload = () => resolve(window.qrcode);
+      s.onerror = () => {
+        _qrLoader = null;
+        reject(new Error("qr-load-failed"));
+      };
+      document.head.appendChild(s);
+    });
   }
+  return _qrLoader;
+}
+
+async function renderQr(el, text) {
+  el.innerHTML = '<span class="qr-loading">Generating QR…</span>';
   try {
-    await navigator.clipboard.writeText(url);
-    toast("Route link copied to clipboard!");
+    const qrcode = await loadQrLib();
+    const qr = qrcode(0, "M");
+    qr.addData(text);
+    qr.make();
+    el.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+    const svg = el.querySelector("svg");
+    if (svg) {
+      svg.removeAttribute("width");
+      svg.removeAttribute("height");
+      svg.classList.add("qr-svg");
+    }
   } catch {
-    toast(url);
+    el.innerHTML =
+      '<span class="qr-loading">QR needs an internet connection. The link below still works.</span>';
+  }
+}
+
+// ── Share modal (URL + QR, with optional cloud short link) ───────
+async function openShareModal(stops) {
+  const localUrl = buildStopsUrl(stops);
+  openModal(
+    "shareModal",
+    `
+    <div class="modal-head">
+      <h3>🔗 Share route</h3>
+      <button type="button" class="modal-close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-sub">${routeLabel(stops)}</p>
+      <div class="qr-box" id="qrBox"></div>
+      <label class="modal-label">Shareable link</label>
+      <div class="share-url-row">
+        <input type="text" id="shareUrlInput" readonly value="${localUrl}" />
+        <button type="button" class="dir-action" id="copyUrlBtn">Copy</button>
+      </div>
+      <p class="modal-note" id="shareCloudNote"></p>
+    </div>`,
+  );
+
+  const urlInput = document.getElementById("shareUrlInput");
+  const qrBox = document.getElementById("qrBox");
+  const cloudNote = document.getElementById("shareCloudNote");
+
+  document.getElementById("copyUrlBtn")?.addEventListener("click", async () => {
+    urlInput.select();
+    try {
+      await navigator.clipboard.writeText(urlInput.value);
+      toast("Link copied to clipboard!");
+    } catch {
+      toast("Copy the highlighted link.");
+    }
+  });
+
+  // Render a QR for the local link immediately…
+  renderQr(qrBox, localUrl);
+
+  // …then upgrade to a short cloud link if Firebase is configured.
+  if (isCloudEnabled()) {
+    cloudNote.textContent = "Creating a short cloud link…";
+    try {
+      const id = await publishRoute(stops, routeLabel(stops));
+      const cloudUrl = buildCloudUrl(id);
+      urlInput.value = cloudUrl;
+      cloudNote.textContent = "Short cloud link ready (works on any device).";
+      renderQr(qrBox, cloudUrl);
+    } catch {
+      cloudNote.textContent =
+        "Cloud link unavailable — using the full link above (works fine).";
+    }
+  } else {
+    cloudNote.textContent =
+      "Tip: configure Firebase to generate short links. The link above works everywhere.";
+  }
+
+  // If the device has a native share sheet, offer it too.
+  if (navigator.share) {
+    const btn = document.createElement("button");
+    btn.className = "dir-action";
+    btn.id = "nativeShareBtn";
+    btn.textContent = "📲 Share via…";
+    btn.addEventListener("click", () =>
+      navigator
+        .share({
+          title: "Mason Navigator route",
+          text: `Walking directions: ${routeLabel(stops)}`,
+          url: urlInput.value,
+        })
+        .catch(() => {}),
+    );
+    document.querySelector("#shareModal .share-url-row")?.appendChild(btn);
   }
 }
 
@@ -1021,6 +1221,233 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
 }
+
+function escapeAttr(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// ── Generic modal ────────────────────────────────────────────────
+function openModal(id, innerHtml) {
+  let overlay = document.getElementById(id);
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = id;
+    overlay.className = "app-modal";
+    document.body.appendChild(overlay);
+  }
+  overlay.innerHTML = `<div class="app-modal-card" role="dialog" aria-modal="true">${innerHtml}</div>`;
+  overlay.classList.add("open");
+  overlay.onclick = (e) => {
+    if (e.target === overlay || e.target.closest("[data-close]")) closeModal(id);
+  };
+  document.addEventListener("keydown", escClose);
+  return overlay;
+}
+function closeModal(id) {
+  document.getElementById(id)?.classList.remove("open");
+  if (!document.querySelector(".app-modal.open"))
+    document.removeEventListener("keydown", escClose);
+}
+function escClose(e) {
+  if (e.key === "Escape")
+    document
+      .querySelectorAll(".app-modal.open")
+      .forEach((m) => m.classList.remove("open"));
+}
+
+// ── Multi-leg waypoint inputs ────────────────────────────────────
+const MAX_WAYPOINTS = 8;
+
+function addWaypoint(value = "") {
+  if (!waypointWrap) return;
+  if (waypointWrap.querySelectorAll(".wp-row").length >= MAX_WAYPOINTS) {
+    toast(`You can add up to ${MAX_WAYPOINTS} stops.`);
+    return;
+  }
+  const row = document.createElement("div");
+  row.className = "wp-row";
+  row.innerHTML = `
+    <input class="wp-input" list="rooms" placeholder="Stop along the way (e.g. C111)" autocomplete="off" />
+    <button type="button" class="wp-remove" title="Remove this stop" aria-label="Remove stop">✕</button>`;
+  const input = row.querySelector(".wp-input");
+  input.value = value;
+  input.addEventListener("input", () => {
+    const pos = input.selectionStart;
+    input.value = input.value.toUpperCase();
+    input.setSelectionRange(pos, pos);
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") go();
+  });
+  row.querySelector(".wp-remove").addEventListener("click", () => row.remove());
+  waypointWrap.appendChild(row);
+  if (value === "") input.focus();
+}
+
+function clearWaypoints() {
+  if (waypointWrap) waypointWrap.innerHTML = "";
+}
+
+// Reflect a stops array back into the start / waypoint / end inputs.
+function setStopsInputs(stops) {
+  clearWaypoints();
+  startInput.value = stops[0] || "";
+  endInput.value = stops[stops.length - 1] || "";
+  stops.slice(1, -1).forEach((s) => addWaypoint(s));
+}
+
+addStopBtn?.addEventListener("click", () => addWaypoint());
+
+// ── Favorite routes (up to 10, stored locally on this device) ────
+const FAV_KEY = "favoriteRoutes";
+const FAV_SLOTS = 10;
+
+function getFavorites() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(FAV_KEY) || "[]");
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .slice(0, FAV_SLOTS)
+      .map((f) => ({ name: f?.name || "", stops: Array.isArray(f?.stops) ? f.stops : [] }));
+  } catch {
+    return [];
+  }
+}
+
+function setFavorites(list) {
+  localStorage.setItem(FAV_KEY, JSON.stringify(list.slice(0, FAV_SLOTS)));
+}
+
+function favStart(f) {
+  return f.stops[0] || "";
+}
+function favEnd(f) {
+  return f.stops[f.stops.length - 1] || "";
+}
+
+function openFavoritesModal(highlight = -1) {
+  const favs = getFavorites();
+  let rows = "";
+  for (let i = 0; i < FAV_SLOTS; i++) {
+    const f = favs[i] || { name: "", stops: [] };
+    const extra = f.stops.length > 2 ? `<span class="fav-extra">+${f.stops.length - 2}</span>` : "";
+    rows += `
+      <div class="fav-slot${i === highlight ? " hot" : ""}" data-stops='${escapeAttr(
+        JSON.stringify(f.stops),
+      )}'>
+        <span class="fav-num">${i + 1}</span>
+        <input class="fav-name" placeholder="Name (e.g. Chem → Lunch)" value="${escapeAttr(
+          f.name,
+        )}" maxlength="40" />
+        <input class="fav-start" list="rooms" placeholder="Start" value="${escapeAttr(
+          favStart(f),
+        )}" />
+        <span class="fav-arrow">→</span>
+        <input class="fav-end" list="rooms" placeholder="End" value="${escapeAttr(
+          favEnd(f),
+        )}" />
+        ${extra}
+        <button type="button" class="fav-go" title="Navigate this route" aria-label="Go">▶</button>
+      </div>`;
+  }
+
+  openModal(
+    "favModal",
+    `
+    <div class="modal-head">
+      <h3>⭐ Favorite routes</h3>
+      <button type="button" class="modal-close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-sub">Save up to 10 routes on this device. Press ▶ to navigate one, then press Save.</p>
+      <div class="fav-list">${rows}</div>
+      <div class="fav-actions">
+        <button type="button" class="dir-action" id="favSaveBtn">💾 Save favorites</button>
+      </div>
+    </div>`,
+  );
+
+  const modal = document.getElementById("favModal");
+  modal.querySelectorAll(".fav-start, .fav-end").forEach((inp) => {
+    inp.addEventListener("input", () => {
+      const p = inp.selectionStart;
+      inp.value = inp.value.toUpperCase();
+      inp.setSelectionRange(p, p);
+    });
+  });
+  modal.querySelectorAll(".fav-go").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const slot = btn.closest(".fav-slot");
+      const stops = slotStops(slot);
+      if (stops.length < 2) {
+        toast("Fill in a start and end for this slot first.");
+        return;
+      }
+      collectAndSaveFavorites(modal, false);
+      closeModal("favModal");
+      setStopsInputs(stops);
+      renderRoute(stops);
+      dirBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  });
+  document
+    .getElementById("favSaveBtn")
+    ?.addEventListener("click", () => collectAndSaveFavorites(modal, true));
+}
+
+// Resolve a slot's intended route: keep stored multi-leg stops if the start/end
+// boxes are unchanged, otherwise treat it as a simple start → end route.
+function slotStops(slot) {
+  const start = slot.querySelector(".fav-start").value.trim().toUpperCase();
+  const end = slot.querySelector(".fav-end").value.trim().toUpperCase();
+  if (!start || !end) return [];
+  let stored = [];
+  try {
+    stored = JSON.parse(slot.getAttribute("data-stops") || "[]");
+  } catch {
+    stored = [];
+  }
+  if (
+    stored.length > 2 &&
+    stored[0] === start &&
+    stored[stored.length - 1] === end
+  )
+    return stored;
+  return [start, end];
+}
+
+function collectAndSaveFavorites(modal, notify) {
+  const list = [];
+  modal.querySelectorAll(".fav-slot").forEach((slot) => {
+    const name = slot.querySelector(".fav-name").value.trim();
+    const stops = slotStops(slot);
+    list.push({ name, stops });
+  });
+  setFavorites(list);
+  if (notify) toast("Favorites saved to this device.");
+}
+
+// Save the currently displayed route into the first free favorite slot.
+function saveCurrentAsFavorite(stops) {
+  const favs = getFavorites();
+  while (favs.length < FAV_SLOTS) favs.push({ name: "", stops: [] });
+  let idx = favs.findIndex((f) => f.stops.length < 2);
+  if (idx === -1) {
+    toast("All 10 favorite slots are full — open Favorites to overwrite one.");
+    openFavoritesModal();
+    return;
+  }
+  favs[idx] = { name: `${stops[0]} → ${stops[stops.length - 1]}`, stops };
+  setFavorites(favs);
+  openFavoritesModal(idx);
+  toast(`Saved to slot ${idx + 1}. Rename it and press Save.`);
+}
+
+favBtn?.addEventListener("click", () => openFavoritesModal());
 
 // ── AI mode (Groq) ───────────────────────────────────────────────
 function getGroqKey() {
@@ -1217,15 +1644,14 @@ async function askAI() {
       return;
     }
 
-    startInput.value = start;
-    endInput.value = end;
+    setStopsInputs([start, end]);
     aiResult.className = "ai-result ok";
     aiResult.innerHTML = `✨ ${
       out.note ? stripHtml(out.note) + " " : ""
     }Routing <strong>${displayRooms[start] || start}</strong> → <strong>${
       displayRooms[end] || end
     }</strong>…`;
-    renderRoute(start, end);
+    renderRoute([start, end]);
     dirBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
   } catch (err) {
     if (err.type === "locked") {
@@ -1273,14 +1699,44 @@ if (aiKeyInput) {
 
 refreshAiUI();
 
-// ── Deep-link: run a shared route from ?from=&to= on load ────────
-(function loadFromUrl() {
+// ── Deep-link: run a shared route on load ────────────────────────
+// Supports ?r=<cloud id> (Firebase), ?stops=A,B,C (multi-leg), and the
+// legacy ?from=&to= form. Cloud lookups fail over gracefully to URL params.
+(async function loadFromUrl() {
   const params = new URLSearchParams(window.location.search);
+
+  const r = (params.get("r") || "").trim();
+  if (r && isCloudEnabled()) {
+    try {
+      const data = await fetchRoute(r);
+      const stops = (data?.stops || []).map((s) => String(s).toUpperCase());
+      if (stops.length >= 2) {
+        setStopsInputs(stops);
+        renderRoute(stops);
+        return;
+      }
+    } catch {
+      /* fall through to URL params */
+    }
+  }
+
+  const stopsParam = params.get("stops");
+  if (stopsParam) {
+    const stops = stopsParam
+      .split(",")
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
+    if (stops.length >= 2) {
+      setStopsInputs(stops);
+      renderRoute(stops);
+      return;
+    }
+  }
+
   const from = (params.get("from") || "").trim().toUpperCase();
   const to = (params.get("to") || "").trim().toUpperCase();
   if (from && to) {
-    startInput.value = from;
-    endInput.value = to;
-    renderRoute(from, to);
+    setStopsInputs([from, to]);
+    renderRoute([from, to]);
   }
 })();
