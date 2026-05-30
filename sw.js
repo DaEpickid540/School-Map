@@ -1,36 +1,53 @@
 // sw.js — Service Worker for Mason Navigator PWA
-const CACHE = 'mason-nav-v2';
+//
+// Works on both GitHub Pages (/School-Map/) and Firebase Hosting (/) by
+// detecting the base path from the service worker's own URL at runtime.
+
+const VERSION = 'mason-nav-v3';
+
+// Derive the base path so this works on any hosting path.
+// GitHub Pages: self.location.pathname === '/School-Map/sw.js' → BASE = '/School-Map'
+// Firebase:     self.location.pathname === '/sw.js'            → BASE = ''
+const BASE = self.location.pathname.replace(/\/sw\.js$/, '');
+
 const ASSETS = [
-  '/School-Map/',
-  '/School-Map/index.html',
-  '/School-Map/why.html',
-  '/School-Map/style.css',
-  '/School-Map/theme.js',
-  '/School-Map/script.js',
-  '/School-Map/schoolGraph.js',
-  '/School-Map/pathfinding.js',
-  '/School-Map/displayRooms.js',
-  '/School-Map/A_Rooms.js',
-  '/School-Map/B_Rooms.js',
-  '/School-Map/C_Rooms.js',
-  '/School-Map/Z_Rooms.js',
-  '/School-Map/D_Rooms.js',
-  '/School-Map/E_Rooms.js',
-  '/School-Map/F_Rooms.js',
-  '/School-Map/icons/icon-192x192.png',
-  '/School-Map/icons/icon-512x512.png',
+  `${BASE}/`,
+  `${BASE}/index.html`,
+  `${BASE}/why.html`,
+  `${BASE}/style.css`,
+  `${BASE}/theme.js`,
+  `${BASE}/script.js`,
+  `${BASE}/cloud.js`,
+  `${BASE}/aiConfig.js`,
+  `${BASE}/firebaseConfig.js`,
+  `${BASE}/schoolGraph.js`,
+  `${BASE}/pathfinding.js`,
+  `${BASE}/displayRooms.js`,
+  `${BASE}/A_Rooms.js`,
+  `${BASE}/B_Rooms.js`,
+  `${BASE}/C_Rooms.js`,
+  `${BASE}/Z_Rooms.js`,
+  `${BASE}/D_Rooms.js`,
+  `${BASE}/E_Rooms.js`,
+  `${BASE}/F_Rooms.js`,
+  `${BASE}/icons/icon-192x192.png`,
+  `${BASE}/icons/icon-512x512.png`,
 ];
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())
+    caches.open(VERSION)
+      .then(c => c.addAll(ASSETS))
+      .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(
+        keys.filter(k => k !== VERSION).map(k => caches.delete(k))
+      ))
       .then(() => self.clients.claim())
   );
 });
@@ -38,6 +55,8 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   e.respondWith(
     caches.match(e.request)
-      .then(cached => cached || fetch(e.request).catch(() => caches.match('/School-Map/index.html')))
+      .then(cached => cached || fetch(e.request)
+        .catch(() => caches.match(`${BASE}/index.html`))
+      )
   );
 });
