@@ -21,6 +21,67 @@ const POD_NAMES = {
 
 const SECONDARY_STAIRS = new Set(["Z2", "A2", "B2"]);
 
+// ── Pod wall-paint colors ────────────────────────────────────────
+// Every classroom pod has its interior walls painted a distinct color.
+// This is the single fastest landmark for confirming you're in the right
+// pod, so we surface it everywhere the route enters or arrives at a pod.
+//   A Pod → RED   ·   Z Pod → YELLOW   ·   B Pod → BLUE   ·   C Pod → ORANGE
+const POD_COLORS = {
+  A_Pod: { name: "RED", hex: "#e23b3b" },
+  Z_Pod: { name: "YELLOW", hex: "#e0a800" },
+  B_Pod: { name: "BLUE", hex: "#2f6bd6" },
+  C_Pod: { name: "ORANGE", hex: "#e8801a" },
+};
+
+// B Pod sits directly across from the Dream Center (B125). Per request, we
+// always surface this landmark whenever the route touches B Pod.
+const DREAM_CENTER_NOTE =
+  `🚪 <strong>B Pod is directly across from the Dream Center.</strong> Use the Dream Center as your landmark — B Pod's entrance is right opposite it.`;
+
+// Accepts a pod key ("A_Pod"), pod node ("A_Pod_1"), or room name and returns
+// the color record, or null for color-less areas (Commons, Lobby, D/E/F Wings).
+function getPodColor(podKeyOrNode) {
+  if (!podKeyOrNode) return null;
+  if (POD_COLORS[podKeyOrNode]) return POD_COLORS[podKeyOrNode];
+  const key = getPodKey(podKeyOrNode);
+  if (key && POD_COLORS[key]) return POD_COLORS[key];
+  // Fall back to first letter ONLY for actual room names like "B125" (a pod
+  // letter immediately followed by a digit). This avoids matching area names
+  // such as "Commons" (which starts with C but is not the C Pod).
+  const node = String(podKeyOrNode);
+  if (/^[A-Z]\d/.test(node)) {
+    const guess = `${node[0]}_Pod`;
+    return POD_COLORS[guess] || null;
+  }
+  return null;
+}
+
+// A colored inline swatch + label, e.g. a blue "BLUE" pill.
+function colorSwatch(color) {
+  return `<strong style="color:${color.hex}">${color.name}</strong>`;
+}
+
+// Sentence telling the user to confirm the pod by its wall color.
+function podColorConfirm(podKeyOrNode, podLabel) {
+  const c = getPodColor(podKeyOrNode);
+  if (!c) return null;
+  return `🎨 ${podLabel || "This pod"} has walls painted ${colorSwatch(
+    c,
+  )} — if the walls aren't ${c.name.toLowerCase()}, you're in the wrong pod.`;
+}
+
+// Appends pod-color confirmation (and the Dream Center landmark for B Pod) to
+// a piece of guidance text. `podKeyOrNode` identifies the pod being entered.
+function decoratePodCues(text, podKeyOrNode) {
+  const key = getPodKey(podKeyOrNode) || podKeyOrNode;
+  const podLabel = POD_NAMES[key] || (key ? key.replace(/_/g, " ") : null);
+  const extras = [];
+  const colorLine = podColorConfirm(podKeyOrNode, podLabel);
+  if (colorLine) extras.push(colorLine);
+  if (key === "B_Pod") extras.push(DREAM_CENTER_NOTE);
+  return extras.length ? `${text} ${extras.join(" ")}` : text;
+}
+
 // ── Room number helpers ──────────────────────────────────────────
 function getRoomInPodNum(roomName) {
   const num = parseInt(roomName.replace(/[^0-9]/g, ""), 10);
@@ -48,6 +109,17 @@ function isAdminRoom(roomName) {
   if (isNaN(n)) return false;
   return (n >= 14 && n <= 32) || (n >= 51 && n <= 71);
 }
+
+// Any A-room with exactly 2 digits is a FRONT OFFICE room at the building
+// front / main lobby — NOT inside the A Pod classroom diamond (3-digit rooms).
+function isFrontOfficeRoom(roomName) {
+  return /^A\d{2}[A-Z]?$/.test(roomName);
+}
+
+// Music rooms — reached through the cafeteria / commons. NOTE: inferred from
+// the floor plan (Music Entry + Music/Dining Entry). Adjust this list if any
+// room is wrong.
+const MUSIC_ROOMS = new Set(["C131", "D102", "D158", "D167", "D168"]);
 
 // ── After-stair navigation hint ──────────────────────────────────
 // Called after the user has arrived at the secondary stair landing.
@@ -129,7 +201,9 @@ function getAfterPrimaryStairHint(stairNode, destRoom, destPod) {
   // Admin rooms → right side behind front desk
 
   if (isAdminRoom(destRoom)) {
-    return `You are now inside A Pod at the A${podFloor === 1 ? "1" : podFloor === 2 ? "" : ""}  stairwell. The admin rooms are on the <strong>right side path behind A11 (Front Desk)</strong>, opposite to where you entered. Walk toward A11 and take the right-side corridor.`;
+    return `You are now inside A Pod at the A${
+      podFloor === 1 ? "1" : podFloor === 2 ? "" : ""
+    }  stairwell. The admin rooms are on the <strong>right side path behind A11 (Front Desk)</strong>, opposite to where you entered. Walk toward A11 and take the right-side corridor.`;
   }
   if (isInnerHallwayRoom(destRoom)) {
     return `You are now inside ${podLetter} Pod at the main stairwell. Walk toward the <strong>water fountain and lockers</strong> — ${destRoom} is along this hallway path (${podLetter}101–${podLetter}114 side).`;
@@ -151,6 +225,8 @@ function getPodKey(node) {
 
 function podDisplayName(node) {
   if (!node) return "";
+  if (node === "Lobby_1" || node === "Lobby_2")
+    return "Front Office / Main Lobby";
   const key = getPodKey(node);
   return key
     ? POD_NAMES[key] || key.replace(/_/g, " ")
@@ -163,11 +239,12 @@ function floorLabel(f) {
 
 // ── Walk descriptions between pods ──────────────────────────────
 function getWalkDescription(fromNode, toNode, floor) {
-  const from =
-    getPodKey(fromNode) ||
-    (fromNode?.startsWith("Commons") ? "Commons" : fromNode);
-  const to =
-    getPodKey(toNode) || (toNode?.startsWith("Commons") ? "Commons" : toNode);
+  const resolve = (n) => {
+    if (n === "Lobby_1" || n === "Lobby_2") return "Lobby";
+    return getPodKey(n) || (n?.startsWith("Commons") ? "Commons" : n);
+  };
+  const from = resolve(fromNode);
+  const to = resolve(toNode);
   const f = floor || 1;
 
   const interPodCorridor = {
@@ -195,12 +272,23 @@ function getWalkDescription(fromNode, toNode, floor) {
     "F_Wing->D_Wing": `Walk east through F Wing back into D Wing.`,
     "Z_Pod->Commons": `Walk north through Z Pod, through the Z Pod / A Pod junction, continue north through A Pod, through the A–B connector (past A2 stairwell), into the Commons via B Pod.`,
     "Commons->Z_Pod": `From the Commons, walk south through B Pod, through the A–B connector (past A2 stairwell), through A Pod, and south through the A Pod / Z Pod junction into Z Pod.`,
+
+    // ── Front office / lobby shortcut (floors 1 & 2) ───────────────
+    // The A Pod ↔ front office and C Pod ↔ front office hops use the
+    // shortcut hallway that runs past the trophy case and the Harvard Room.
+    "A_Pod->Lobby": `Take the <strong>shortcut hallway</strong> from A Pod toward the front office / building front. <strong>Walk past the trophy case and the Harvard Room</strong> — this hallway leads straight to the main lobby and front desk.`,
+    "Lobby->A_Pod": `From the front office / main lobby, take the <strong>shortcut hallway</strong> toward A Pod. <strong>Go past the Harvard Room and the trophy case</strong> — the hallway opens into the A Pod classroom area.`,
+    "C_Pod->Lobby": `Take the <strong>shortcut hallway</strong> from C Pod toward the front office / building front. <strong>Walk past the Harvard Room and the trophy case</strong> — this hallway leads straight to the main lobby and front desk.`,
+    "Lobby->C_Pod": `From the front office / main lobby, take the <strong>shortcut hallway</strong> toward C Pod. <strong>Go past the trophy case and the Harvard Room</strong> — the hallway opens into C Pod.`,
   };
 
-  return (
+  const baseText =
     desc[`${from}->${to}`] ||
-    `Walk from ${podDisplayName(fromNode)} to ${podDisplayName(toNode)}`
-  );
+    `Walk from ${podDisplayName(fromNode)} to ${podDisplayName(toNode)}`;
+
+  // Layer in the destination pod's wall color (and the Dream Center landmark
+  // for B Pod) so the walker can confirm they've arrived in the right pod.
+  return decoratePodCues(baseText, to);
 }
 
 // ── Stair descriptions ───────────────────────────────────────────
@@ -219,19 +307,25 @@ const STAIR_LOCATIONS = {
 const SECONDARY_STAIR_DESC = {
   // Secondary stairs — BETWEEN pods in connector hallways (blue dot equivalent)
   Z2: {
-    loc: "the Z2 stairwell — the <strong>connector stairwell between Z Pod and A Pod</strong>, located in the hallway between the two pods",
+    loc:
+      "the Z2 stairwell — the <strong>connector stairwell between Z Pod and A Pod</strong>, located in the hallway between the two pods",
     label: "Z2",
-    orientation: "Z Pod is on one side, A Pod is on the other",
+    orientation:
+      'Z Pod (<strong style="color:#e0a800">YELLOW</strong> walls) is on one side, A Pod (<strong style="color:#e23b3b">RED</strong> walls) is on the other',
   },
   A2: {
-    loc: "the A2 stairwell — the <strong>connector stairwell between A Pod and B Pod</strong>, located in the hallway between the two pods (near B126/B126c below, above A Pod)",
+    loc:
+      "the A2 stairwell — the <strong>connector stairwell between A Pod and B Pod</strong>, located in the hallway between the two pods (near B126/B126c below, above A Pod)",
     label: "A2",
-    orientation: "going up: B Pod is on the RIGHT, A Pod is on the LEFT",
+    orientation:
+      'going up: B Pod (<strong style="color:#2f6bd6">BLUE</strong> walls) is on the RIGHT, A Pod (<strong style="color:#e23b3b">RED</strong> walls) is on the LEFT',
   },
   B2: {
-    loc: "the B2 stairwell — the <strong>connector stairwell between B Pod and C Pod</strong>, located in the hallway between the two pods",
+    loc:
+      "the B2 stairwell — the <strong>connector stairwell between B Pod and C Pod</strong>, located in the hallway between the two pods",
     label: "B2",
-    orientation: "B Pod is on one side, C Pod is on the other",
+    orientation:
+      'B Pod (<strong style="color:#2f6bd6">BLUE</strong> walls) is on one side, C Pod (<strong style="color:#e8801a">ORANGE</strong> walls) is on the other',
   },
 };
 
@@ -257,8 +351,13 @@ function getStairDescription(stairNode, fromFloor, toFloor) {
     STAIR_LOCATIONS[stairNode] ||
     `the ${stairNode.replace("_Stair", "")} stairwell`;
   return {
-    main: `Take ${loc} <strong>${dir || "to"}</strong> the <strong>${fLabel}</strong>`,
-    sub: `This is the stairwell <em>inside</em> the pod · Look for signs labeled "${stairNode.replace("_Stair", "")}"`,
+    main: `Take ${loc} <strong>${
+      dir || "to"
+    }</strong> the <strong>${fLabel}</strong>`,
+    sub: `This is the stairwell <em>inside</em> the pod · Look for signs labeled "${stairNode.replace(
+      "_Stair",
+      "",
+    )}"`,
   };
 }
 
@@ -278,7 +377,8 @@ const ROOM_HINTS = {
   Z115: "Hallway node — mid-hallway intersection in Z Pod",
   Z118: "Bathroom — near Z115 hallway node",
   Z119: "Hallway node — end of Z Pod hallway",
-  Z122: "Student Entry / Attendance — main student entrance, accessible from the Z Pod side",
+  Z122:
+    "Student Entry / Attendance — main student entrance, accessible from the Z Pod side",
   Z125: "Wing end, past Z119",
   Z126: "Wing end, past Z119",
   Z127: "Wing end, past Z119",
@@ -288,17 +388,20 @@ const ROOM_HINTS = {
   B118: "Bathroom — near B115 hallway node",
   B119: "Hallway node — end of B Pod hallway",
   B122: "B Pod hallway area",
-  B125: "Dream Center — on the OPPOSITE side of B Pod from the main hallway, past B1/B115 stairwell",
+  B125:
+    "Dream Center — on the OPPOSITE side of B Pod from the main hallway, past B1/B115 stairwell",
   B125b:
     "Maker Space — in the A–B connector hallway area near the A2 stairwell",
   B125c: "Comet Cafe seating / Library — in the A–B connector hallway area",
   B126: "Wing end, past B119",
   B127: "Wing end, past B119",
   B128: "Comet Cafe (purchase counter) — near B115/B1 stairwell area",
-  B129: "Dream Center Annex — ONLY accessible through Dream Center (B125). Enter B125 first.",
+  B129:
+    "Dream Center Annex — ONLY accessible through Dream Center (B125). Enter B125 first.",
 
   C100: "Hallway hub — inter-pod corridor intersection / Food Court area",
-  C115: "Hallway node — mid-hallway intersection. Cutthrough hallway here leads directly to D101.",
+  C115:
+    "Hallway node — mid-hallway intersection. Cutthrough hallway here leads directly to D101.",
   C118: "Bathroom — near C115 hallway node",
   C119: "Hallway node — end of C Pod main hallway",
   C121: "Curved lobby / auditorium lobby — micro-hallway cluster with C122",
@@ -326,16 +429,19 @@ const ROOM_HINTS = {
   C126P: "Internal to C126",
   C130: "Curved lobby area — NOT on the main straight hallway",
 
-  D101: "Small Cafeteria — accessible via the C115 cutthrough hallway OR through the Commons",
+  D101:
+    "Small Cafeteria — accessible via the C115 cutthrough hallway OR through the Commons",
   D123: "Field House / Gym — deep in D Wing, west side",
   D136: "Pool — deep in D Wing, west side",
   D138: "Auditorium — D Wing, south side",
-  D150: "Large Commons / Cafeteria — end of the 1st floor inter-pod corridor (Z100→A100→B100→C100→D150)",
+  D150:
+    "Large Commons / Cafeteria — end of the 1st floor inter-pod corridor (Z100→A100→B100→C100→D150)",
   D152: "Cafeteria purchase area — adjacent to D150",
   D158: "Music private rooms — D Wing near auditorium",
   D160: "Lunch purchase counters — near D150 cafeteria",
   D212: "Drama Room — Floor 2, D Wing",
-  D213: "Weight Room — end of the 2nd floor inter-pod corridor (Z200→A200→B200→C200→D213)",
+  D213:
+    "Weight Room — end of the 2nd floor inter-pod corridor (Z200→A200→B200→C200→D213)",
 };
 
 // Admin rooms share the same hint
@@ -358,10 +464,13 @@ adminF2.forEach((r) => {
     for (let n = 1; n <= 14; n++) {
       const key = `${pod}${floor > 1 ? floor * 100 + n : n < 10 ? n : n}`;
       // Build actual key: A101, A201, A301, B101, etc.
-      const roomKey = `${pod}${floor === 1 ? (n < 10 ? "10" + n : "1" + n) : floor * 100 + n}`;
+      const roomKey = `${pod}${
+        floor === 1 ? (n < 10 ? "10" + n : "1" + n) : floor * 100 + n
+      }`;
       if (!ROOM_HINTS[roomKey]) {
-        ROOM_HINTS[roomKey] =
-          `Inner hallway (${pod}101–${pod}114 side) — walk toward the water fountain and lockers after entering the pod`;
+        ROOM_HINTS[
+          roomKey
+        ] = `Inner hallway (${pod}101–${pod}114 side) — walk toward the water fountain and lockers after entering the pod`;
       }
     }
   });
@@ -369,6 +478,9 @@ adminF2.forEach((r) => {
 
 function getArrivalHint(roomName) {
   if (ROOM_HINTS[roomName]) return ROOM_HINTS[roomName];
+  // Front office rooms (2-digit A) live at the building front, not the pod
+  if (isFrontOfficeRoom(roomName))
+    return "Front office / main lobby — reached via the shortcut hallway past the trophy case and Harvard Room, not inside the A Pod classrooms";
   const n = getRoomInPodNum(roomName);
   if (n === null) return null;
   if (n === 0) return "Hallway hub — inter-pod corridor intersection";
@@ -387,9 +499,16 @@ function generateSteps(path, start, end) {
   let prevFloor = startFloor;
   let prevPodNode = schoolGraph[start]?.[0] || null;
 
+  const startColor = getPodColor(prevPodNode);
   steps.push({
     icon: "📍",
-    text: `Start at <strong>${displayRooms[start] || start}</strong>`,
+    text: `Start at <strong>${displayRooms[start] || start}</strong>${
+      startColor
+        ? `<br><span style="font-size:0.9em">You're starting in ${podDisplayName(
+            prevPodNode,
+          )} — the pod with ${colorSwatch(startColor)} walls.</span>`
+        : ""
+    }`,
     sub: [
       floorLabel(startFloor),
       podDisplayName(prevPodNode),
@@ -437,8 +556,10 @@ function generateSteps(path, start, end) {
           if (hint) {
             steps.push({
               icon: "↩️",
-              text: hint,
-              sub: `Navigating within ${podDisplayName(destPod + "_1")} after exiting stairwell`,
+              text: decoratePodCues(hint, destPod),
+              sub: `Navigating within ${podDisplayName(
+                destPod,
+              )} after exiting stairwell`,
             });
           }
         }
@@ -446,11 +567,19 @@ function generateSteps(path, start, end) {
       continue;
     }
 
-    // ── Pod / wing hub ──────────────────────────────────────────
-    if (/^[A-Z](?:_Pod|_Wing)_\d$/.test(node) || /^Commons_\d$/.test(node)) {
-      const pk = getPodKey(prevPodNode);
-      const ck =
-        getPodKey(node) || (node.startsWith("Commons") ? "Commons" : null);
+    // ── Pod / wing hub (incl. front office lobby) ───────────────
+    if (
+      /^[A-Z](?:_Pod|_Wing)_\d$/.test(node) ||
+      /^Commons_\d$/.test(node) ||
+      node === "Lobby_1" ||
+      node === "Lobby_2"
+    ) {
+      const resolveKey = (n) =>
+        n === "Lobby_1" || n === "Lobby_2"
+          ? "Lobby"
+          : getPodKey(n) || (n?.startsWith("Commons") ? "Commons" : null);
+      const pk = resolveKey(prevPodNode);
+      const ck = resolveKey(node);
       if (pk && ck && pk === ck) {
         prevPodNode = node;
         continue;
@@ -458,7 +587,9 @@ function generateSteps(path, start, end) {
       steps.push({
         icon: "🚶",
         text: getWalkDescription(prevPodNode, node, prevFloor),
-        sub: `${floorLabel(prevFloor)} · heading toward ${podDisplayName(node)}`,
+        sub: `${floorLabel(prevFloor)} · heading toward ${podDisplayName(
+          node,
+        )}`,
       });
       prevPodNode = node;
       continue;
@@ -474,12 +605,12 @@ function generateSteps(path, start, end) {
         end === "B129"
           ? "⚠ B129 is ONLY accessible through Dream Center (B125) — enter B125 first."
           : end.startsWith("C126") && end !== "C126"
-            ? `⚠ ${end} is internal to C126 — enter through C126 first.`
-            : end === "C125"
-              ? "Note: Harvard Room (C125) is auditorium-style, not on the main hallway."
-              : end === "C123" || end === "C124" || end === "C130"
-                ? "Note: This room is in the curved lobby area, not the main straight hallway."
-                : null;
+          ? `⚠ ${end} is internal to C126 — enter through C126 first.`
+          : end === "C125"
+          ? "Note: Harvard Room (C125) is auditorium-style, not on the main hallway."
+          : end === "C123" || end === "C124" || end === "C130"
+          ? "Note: This room is in the curved lobby area, not the main straight hallway."
+          : null;
 
       // After-primary-stair hint (if last stair used was a primary stair)
       let primaryStairHint = null;
@@ -489,9 +620,47 @@ function generateSteps(path, start, end) {
           primaryStairHint = getAfterPrimaryStairHint(lastStair, end, destPod);
       }
 
+      // Music rooms are reached through the cafeteria: head toward the
+      // Music/Dining exit, past the music note on the floor, then turn right
+      // just before the exit door.
+      const musicNote = MUSIC_ROOMS.has(end)
+        ? `🎵 Coming through the cafeteria: walk past the <strong>music note on the floor</strong> heading toward the exit, then <strong>turn right just before the door</strong> to reach the music rooms.`
+        : null;
+
+      // Destination pod wall-color confirmation + Dream Center landmark for B.
+      const endPodNode = schoolGraph[end]?.[0] || "";
+      const endColor = getPodColor(endPodNode);
+      const endColorNote = endColor
+        ? `🎨 ${endPodName} has walls painted ${colorSwatch(
+            endColor,
+          )} — confirming the wall color is the quickest way to know you've arrived in the right pod.`
+        : null;
+      const dreamNote =
+        getPodKey(endPodNode) === "B_Pod" ? DREAM_CENTER_NOTE : null;
+
       steps.push({
         icon: "🎯",
-        text: `Arrive at <strong>${displayRooms[end] || end}</strong>${accessNote ? `<br><span style="color:#ffaa00;font-size:0.9em">${accessNote}</span>` : ""}${primaryStairHint ? `<br><span style="font-size:0.9em">${primaryStairHint}</span>` : ""}`,
+        text: `Arrive at <strong>${displayRooms[end] || end}</strong>${
+          accessNote
+            ? `<br><span style="color:#ffaa00;font-size:0.9em">${accessNote}</span>`
+            : ""
+        }${
+          musicNote
+            ? `<br><span style="color:#7cc4ff;font-size:0.9em">${musicNote}</span>`
+            : ""
+        }${
+          primaryStairHint
+            ? `<br><span style="font-size:0.9em">${primaryStairHint}</span>`
+            : ""
+        }${
+          endColorNote
+            ? `<br><span style="font-size:0.9em">${endColorNote}</span>`
+            : ""
+        }${
+          dreamNote
+            ? `<br><span style="font-size:0.9em">${dreamNote}</span>`
+            : ""
+        }`,
         sub: [floorLabel(endFloor), endPodName, hint]
           .filter(Boolean)
           .join(" · "),
@@ -561,13 +730,41 @@ function go() {
       : `<span class="badge badge-ok">Floor ${floors[0]}</span>`;
   const stairBadge =
     stairCount > 0
-      ? `<span class="badge badge-stair">🪜 ${stairCount} stairwell${stairCount > 1 ? "s" : ""}</span>`
+      ? `<span class="badge badge-stair">🪜 ${stairCount} stairwell${
+          stairCount > 1 ? "s" : ""
+        }</span>`
       : "";
+
+  // ── Wall-color legend ───────────────────────────────────────────
+  // Collect every colored pod this route passes through (start, end, and any
+  // pod hub along the way) so the user can match wall paint to pod as they go.
+  const routePodKeys = new Set();
+  const addPodKey = (node) => {
+    const k = getPodKey(node) || getPodKey(allRooms[node] || "");
+    if (k && POD_COLORS[k]) routePodKeys.add(k);
+  };
+  path.forEach(addPodKey);
+  addPodKey(start);
+  addPodKey(end);
+
+  const legend = routePodKeys.size
+    ? `<div class="dir-legend" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 2px;font-size:0.8em">${[
+        ...routePodKeys,
+      ]
+        .map((k) => {
+          const c = POD_COLORS[k];
+          return `<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:11px;height:11px;border-radius:3px;background:${c.hex};display:inline-block;border:1px solid rgba(0,0,0,0.25)"></span>${POD_NAMES[k]} = ${c.name} walls</span>`;
+        })
+        .join("")}</div>`
+    : "";
 
   let html = `
     <div class="dir-header">
-      <div class="dir-title">Route: <strong>${displayRooms[start] || start}</strong> → <strong>${displayRooms[end] || end}</strong></div>
+      <div class="dir-title">Route: <strong>${
+        displayRooms[start] || start
+      }</strong> → <strong>${displayRooms[end] || end}</strong></div>
       <div class="dir-badges">${floorBadge}${stairBadge}</div>
+      ${legend}
     </div>
     <ol class="dir-steps">`;
 
