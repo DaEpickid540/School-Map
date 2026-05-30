@@ -99,72 +99,38 @@ for (const [room, pod] of Object.entries(allRooms)) {
   if (!schoolGraph[pod].includes(room)) schoolGraph[pod].push(room);
 }
 
-// Admin rooms connect directly to the lobby nodes, not just via A_Pod
-// Floor 1 admin (A11, A14–A32) → Lobby_1
-const ADMIN_F1 = [
-  "A11",
-  "A14",
-  "A15",
-  "A16",
-  "A17",
-  "A18",
-  "A19",
-  "A20",
-  "A21",
-  "A22",
-  "A23",
-  "A24",
-  "A25",
-  "A26",
-  "A27",
-  "A28",
-  "A29",
-  "A30",
-  "A31",
-]; // A32 excluded — connects via A100 corridor
-for (const room of ADMIN_F1) {
-  if (schoolGraph[room]) schoolGraph[room] = ["Lobby_1"];
-  if (!schoolGraph["Lobby_1"].includes(room)) schoolGraph["Lobby_1"].push(room);
+// ── Front office rooms ────────────────────────────────────────────
+// Any A-room with exactly 2 digits (A10–A99, plus lettered suffixes like
+// A51A/A53B) is a FRONT OFFICE room located at the building front / main
+// lobby — NOT inside the A Pod classroom diamond (those are 3-digit, A100+).
+// These connect to the lobby on their floor, reached from A Pod or C Pod
+// via the shortcut hallway past the trophy case / Harvard Room.
+export function isFrontOfficeRoom(room) {
+  return /^A\d{2}[A-Z]?$/.test(room);
 }
 
-// A32 Nurse's Office — accessible from A100 (inter-pod corridor), not the lobby
-if (schoolGraph["A32"]) schoolGraph["A32"] = ["A_Pod_1"];
-if (!schoolGraph["A_Pod_1"].includes("A32")) schoolGraph["A_Pod_1"].push("A32");
+for (const room of Object.keys(allRooms)) {
+  if (!isFrontOfficeRoom(room)) continue;
+  // A32 (Nurse's Office) is the one 2-digit exception: the original map
+  // accesses it from the A100 inter-pod corridor, not the lobby. Left as-is.
+  if (room === "A32") continue;
+  const lobby = getRoomFloor(room) === 2 ? "Lobby_2" : "Lobby_1";
+  schoolGraph[room] = [lobby];
+  if (!schoolGraph[lobby]) {
+    schoolGraph[lobby] =
+      lobby === "Lobby_2"
+        ? ["A_Pod_2", "C_Pod_2", "Front_Stair"]
+        : ["A_Pod_1", "C_Pod_1", "Front_Stair"];
+  }
+  if (!schoolGraph[lobby].includes(room)) schoolGraph[lobby].push(room);
 
-// Floor 2 admin (A51A/B, A52, A53/A–D, A54–A71) → Lobby_2
-const ADMIN_F2 = [
-  "A51A",
-  "A51B",
-  "A52",
-  "A53",
-  "A53A",
-  "A53B",
-  "A53C",
-  "A53D",
-  "A54",
-  "A55",
-  "A56",
-  "A57",
-  "A58",
-  "A59",
-  "A60",
-  "A61",
-  "A62",
-  "A63",
-  "A64",
-  "A65",
-  "A66",
-  "A67",
-  "A68",
-  "A69",
-  "A70",
-  "A71",
-];
-for (const room of ADMIN_F2) {
-  if (schoolGraph[room]) schoolGraph[room] = ["Lobby_2"];
-  if (!schoolGraph["Lobby_2"])
-    schoolGraph["Lobby_2"] = ["A_Pod_2", "C_Pod_2", "Front_Stair"];
-  if (!schoolGraph["Lobby_2"].includes(room)) schoolGraph["Lobby_2"].push(room);
+  // Strip the office room out of every pod's neighbor list so the ONLY
+  // way the pathfinder can reach it is through the lobby (which forces the
+  // trophy-case / Harvard Room shortcut directions to be generated).
+  for (const node of Object.keys(schoolGraph)) {
+    if (node === lobby) continue;
+    schoolGraph[node] = schoolGraph[node].filter((nb) => nb !== room);
+  }
 }
 
 export function getRoomFloor(room) {

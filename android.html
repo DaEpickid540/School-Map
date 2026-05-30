@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="mason">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Install on Android — Mason Navigator</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" type="image/png" href="icons/favicon.ico" />
+    <style>
+      /* ── Android guide page additions ───────────────────────────────
+         Only layout/component styles not already in style.css.
+         All colors reference CSS variables from the theme system.
+      ─────────────────────────────────────────────────────────── */
+
+      /* Two-column on desktop, single on mobile */
+      .android-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px 16px 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* Step pairs layout */
+      .steps-wrapper {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+      @media (min-width: 768px) {
+        .steps-wrapper {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      .step-pair {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* ── Hero banner ─────────────────────────────────────────── */
+      .android-hero {
+        background: var(--accent);
+        padding: 56px 24px 72px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+      .android-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 0, 0, 0.06) 2px,
+          rgba(0, 0, 0, 0.06) 4px
+        );
+        pointer-events: none;
+      }
+      .android-hero::after {
+        content: "";
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 36px;
+        background: var(--bg);
+        border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+      }
+      .android-hero-icon {
+        font-size: 3rem;
+        display: block;
+        margin-bottom: 16px;
+        animation: android-float 3s ease-in-out infinite;
+        position: relative;
+        z-index: 1;
+      }
+      @keyframes android-float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-8px);
+        }
+      }
+      .android-hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 100px;
+        padding: 5px 14px;
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 20px;
+        position: relative;
+        z-index: 1;
+      }
+      .android-hero h1 {
+        font-family: var(--display);
+        font-size: clamp(1.4rem, 5vw, 2.2rem);
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        color: #fff;
+        line-height: 1.2;
+        margin-bottom: 14px;
+        text-shadow: 0 0 30px var(--accent-glow);
+        position: relative;
+        z-index: 1;
+      }
+      .android-hero p {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: rgba(255, 255, 255, 0.75);
+        max-width: 400px;
+        margin: 0 auto;
+        letter-spacing: 0.04em;
+        position: relative;
+        z-index: 1;
+      }
+
+      /* ── Prereq notice ───────────────────────────────────────── */
+      .prereq {
+        background: var(--card-bg);
+        border: 1px solid var(--accent);
+        border-radius: var(--radius-card);
+        padding: 18px 20px;
+        display: flex;
+        gap: 14px;
+        align-items: flex-start;
+        box-shadow: 0 0 12px var(--accent-glow);
+        position: relative;
+        clip-path: var(--card-clip);
+      }
+      .prereq::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 3px;
+        height: 100%;
+        background: var(--accent);
+        box-shadow: 0 0 8px var(--accent-glow);
+      }
+      .prereq-icon {
+        font-size: 1.2rem;
+        flex-shrink: 0;
+        margin-top: 1px;
+      }
+      .prereq-title {
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--accent);
+        margin-bottom: 6px;
+      }
+      .prereq p {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: var(--text-dim);
+        line-height: 1.6;
+      }
+      .prereq strong {
+        color: var(--text);
+        font-weight: 700;
+      }
+
+      /* ── Section label ───────────────────────────────────────── */
+      .section-label {
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: var(--text-dim);
+        padding-left: 2px;
+        border-left: 2px solid var(--accent);
+        padding-left: 10px;
+      }
+
+      /* ── Step row ────────────────────────────────────────────── */
+      .step {
+        display: grid;
+        grid-template-columns: 48px 1fr;
+        gap: 0 16px;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.45s ease, transform 0.45s ease;
+      }
+      .step.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .step:nth-child(1) {
+        transition-delay: 0.05s;
+      }
+      .step:nth-child(2) {
+        transition-delay: 0.12s;
+      }
+      .step:nth-child(3) {
+        transition-delay: 0.19s;
+      }
+      .step:nth-child(4) {
+        transition-delay: 0.26s;
+      }
+      .step:nth-child(5) {
+        transition-delay: 0.33s;
+      }
+      .step:nth-child(6) {
+        transition-delay: 0.4s;
+      }
+
+      .step-left {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .step-num {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: #fff;
+        font-family: var(--display);
+        font-size: 0.9rem;
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 0 16px var(--accent-glow);
+        position: relative;
+        z-index: 1;
+      }
+      .step-line {
+        width: 2px;
+        flex: 1;
+        min-height: 20px;
+        background: linear-gradient(to bottom, var(--accent), transparent);
+        opacity: 0.3;
+        margin-top: 4px;
+      }
+      .step:last-child .step-line {
+        display: none;
+      }
+
+      /* Step card reuses .card styles from style.css */
+      .step-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-card);
+        padding: 20px 20px 22px;
+        margin-bottom: 8px;
+        position: relative;
+        clip-path: var(--card-clip);
+      }
+      .step-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 3px;
+        height: 100%;
+        background: var(--border);
+      }
+      .step-title {
+        font-family: var(--display);
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text);
+        margin-bottom: 8px;
+      }
+      .step-desc {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: var(--text-dim);
+        line-height: 1.65;
+        margin-bottom: 16px;
+      }
+      .step-desc strong {
+        color: var(--text);
+        font-weight: 700;
+      }
+      .step-desc:last-child {
+        margin-bottom: 0;
+      }
+
+      /* ── Screenshot placeholder ──────────────────────────────– */
+      .screenshot-slot {
+        background: var(--bg2);
+        border: 2px dashed var(--border);
+        border-radius: var(--radius-card);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 28px 20px;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+        min-height: 200px;
+      }
+      .screenshot-slot.portrait {
+        min-height: 320px;
+      }
+      .screenshot-slot:hover {
+        background: var(--card-bg);
+        border-color: var(--accent);
+      }
+      .slot-icon {
+        font-size: 2rem;
+        opacity: 0.3;
+      }
+      .slot-label {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--text-dim);
+        text-align: center;
+        line-height: 1.5;
+      }
+      .slot-hint {
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        color: var(--text-dim);
+        opacity: 0.5;
+      }
+
+      /* ── Actual screenshot images ────────────────────────────– */
+      .step-screenshot {
+        width: 100%;
+        max-width: 320px;
+        height: auto;
+        border-radius: var(--radius-card);
+        margin: 16px 0;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        display: block;
+      }
+
+      /* ── Tip callout ─────────────────────────────────────────– */
+      .tip {
+        display: flex;
+        gap: 10px;
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-left: 2px solid var(--green);
+        border-radius: var(--radius-card);
+        padding: 10px 14px;
+        margin-top: 14px;
+      }
+      .tip-icon {
+        font-size: 0.9rem;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+      .tip p {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        line-height: 1.6;
+      }
+      .tip strong {
+        color: var(--text);
+        font-weight: 700;
+      }
+
+      /* ── Done card ───────────────────────────────────────────– */
+      .done-card {
+        background: var(--card-bg);
+        border: 1px solid var(--accent);
+        border-radius: var(--radius-card);
+        padding: 32px 24px 28px;
+        text-align: center;
+        margin-top: 24px;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.45s ease, transform 0.45s ease;
+        position: relative;
+        clip-path: var(--card-clip);
+      }
+      .done-card.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .done-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: var(--radius-card);
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.04),
+          rgba(0, 0, 0, 0.02)
+        );
+        pointer-events: none;
+      }
+      .done-icon {
+        display: block;
+        font-size: 2.2rem;
+        margin-bottom: 12px;
+        animation: done-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      @keyframes done-bounce {
+        0% {
+          transform: scale(0.3) translateY(-40px);
+          opacity: 0;
+        }
+        50% {
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1) translateY(0);
+        }
+      }
+      .done-card h2 {
+        font-family: var(--display);
+        font-size: 1.4rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text);
+        margin-bottom: 10px;
+      }
+      .done-card p {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: var(--text-dim);
+        line-height: 1.65;
+        margin-bottom: 18px;
+      }
+      .done-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: var(--accent);
+        color: #fff;
+        text-decoration: none;
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 10px 20px;
+        border-radius: var(--radius-card);
+        transition: transform 0.15s, box-shadow 0.15s;
+        cursor: pointer;
+        box-shadow: 0 0 12px var(--accent-glow);
+      }
+      .done-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 20px var(--accent-glow);
+      }
+      .done-btn:active {
+        transform: translateY(0);
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Header with nav -->
+    <header class="header" style="border-bottom: 1px solid var(--border)">
+      <nav
+        class="nav"
+        style="
+          max-width: 1200px;
+          margin: 0 auto;
+          display: flex;
+          align-items: center;
+          gap: 24px;
+          padding: 16px;
+          font-size: 0.85rem;
+        "
+      >
+        <a
+          href="index.html"
+          class="nav-link"
+          style="
+            text-decoration: none;
+            color: var(--text-dim);
+            transition: color 0.2s;
+          "
+          >← Navigator</a
+        >
+        <a
+          href="ios.html"
+          class="nav-link"
+          style="
+            text-decoration: none;
+            color: var(--text-dim);
+            transition: color 0.2s;
+          "
+          >iPhone Install</a
+        >
+        <a
+          href="android.html"
+          class="nav-link active"
+          style="text-decoration: none; color: var(--accent); font-weight: 700"
+          >Android Install</a
+        >
+      </nav>
+    </header>
+
+    <!-- Hero -->
+    <div class="android-hero">
+      <span class="android-hero-icon">📱</span>
+      <div class="android-hero-badge">📱 Android Install Guide</div>
+      <h1>Add to Your<br />Home Screen</h1>
+      <p>
+        Get instant access to your route — works with any Android browser. Saves
+        offline.
+      </p>
+    </div>
+
+    <main class="android-container">
+      <!-- Before you start -->
+      <div class="prereq">
+        <div class="prereq-icon">ℹ️</div>
+        <div>
+          <div class="prereq-title">Before You Start</div>
+          <p>
+            This works on any Android browser —
+            <strong>Chrome, Firefox, Edge</strong>, or any other. Make sure
+            you're connected to Wi-Fi when you first install it.
+          </p>
+        </div>
+      </div>
+
+      <div class="section-label">Step-by-step instructions</div>
+
+      <div class="steps-wrapper">
+        <!-- Step Pair 1: Steps 1 & 2 -->
+        <div class="step-pair">
+          <!-- Step 1 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">1</div>
+              <div class="step-line"></div>
+            </div>
+            <div>
+              <div class="step-card">
+                <div class="step-title">
+                  Open your browser &amp; navigate to the kiosk
+                </div>
+                <div class="step-desc">
+                  Open
+                  <strong>Chrome, Firefox, or your preferred browser</strong> on
+                  your Android phone and go to the Mason Navigator URL. You can
+                  get this by scanning the QR code shown on the kiosk display at
+                  school, or by typing the address directly.
+                </div>
+                <div
+                  class="screenshot-slot portrait"
+                  title="Replace with screenshot"
+                >
+                  <div class="slot-icon">📷</div>
+                  <div class="slot-label">
+                    Screenshot: Browser address bar<br />showing the Mason
+                    Navigator URL
+                  </div>
+                  <div class="slot-hint">
+                    Replace this placeholder with your photo
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">2</div>
+              <div class="step-line"></div>
+            </div>
+            <div>
+              <div class="step-card">
+                <div class="step-title">Tap the menu button</div>
+                <div class="step-desc">
+                  At the top right of your browser, tap the
+                  <strong>three-dot menu button</strong> (⋮). Look for an option
+                  that says <strong>"Install app"</strong>,
+                  <strong>"Add to Home screen"</strong>, or
+                  <strong>"Create shortcut"</strong>.
+                </div>
+                <div class="screenshot-slot portrait">
+                  <div class="slot-icon">📷</div>
+                  <div class="slot-label">
+                    Screenshot: Browser menu with<br />install option visible
+                  </div>
+                  <div class="slot-hint">
+                    Replace this placeholder with your photo
+                  </div>
+                </div>
+                <div class="tip">
+                  <div class="tip-icon">💡</div>
+                  <p>
+                    The exact wording depends on your browser, but look for
+                    anything mentioning <strong>"install"</strong>,
+                    <strong>"home screen"</strong>, or
+                    <strong>"shortcut"</strong>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step Pair 2: Steps 3 & 4 -->
+        <div class="step-pair">
+          <!-- Step 3 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">3</div>
+              <div class="step-line"></div>
+            </div>
+            <div>
+              <div class="step-card">
+                <div class="step-title">
+                  Select "Install app" or "Add to Home Screen"
+                </div>
+                <div class="step-desc">
+                  Tap the install option. A dialog will appear asking you to
+                  confirm adding Mason Navigator to your home screen.
+                </div>
+                <div class="screenshot-slot portrait">
+                  <div class="slot-icon">📷</div>
+                  <div class="slot-label">
+                    Screenshot: Install confirmation<br />dialog
+                  </div>
+                  <div class="slot-hint">
+                    Replace this placeholder with your photo
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">4</div>
+              <div class="step-line"></div>
+            </div>
+            <div>
+              <div class="step-card">
+                <div class="step-title">Confirm and install</div>
+                <div class="step-desc">
+                  The app name should show as
+                  <strong>"Mason Navigator"</strong> — tap
+                  <strong>Install</strong> or <strong>OK</strong> to add it to
+                  your home screen.
+                </div>
+                <div class="screenshot-slot portrait">
+                  <div class="slot-icon">📷</div>
+                  <div class="slot-label">
+                    Screenshot: Install button or<br />confirmation screen
+                  </div>
+                  <div class="slot-hint">
+                    Replace this placeholder with your photo
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step Pair 3: Steps 5 & 6 -->
+        <div class="step-pair">
+          <!-- Step 5 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">5</div>
+              <div class="step-line"></div>
+            </div>
+            <div>
+              <div class="step-card">
+                <div class="step-title">Find the icon on your Home Screen</div>
+                <div class="step-desc">
+                  Mason Navigator will appear as an icon on your Android home
+                  screen — just like a regular app. Press the home button to go
+                  back and find it.
+                </div>
+                <div class="screenshot-slot portrait">
+                  <div class="slot-icon">📷</div>
+                  <div class="slot-label">
+                    Screenshot: Android Home Screen<br />with Mason Navigator
+                    icon visible
+                  </div>
+                  <div class="slot-hint">
+                    Replace this placeholder with your photo
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 6 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">6</div>
+              <div class="step-line"></div>
+            </div>
+            <div>
+              <div class="step-card">
+                <div class="step-title">
+                  Open it — it works like a real app!
+                </div>
+                <div class="step-desc">
+                  Tap the icon to launch Mason Navigator. It opens
+                  <strong>full screen</strong>, with no browser address bar or
+                  buttons — just the app. Once loaded, it works even without a
+                  network connection.
+                </div>
+                <div class="screenshot-slot portrait">
+                  <div class="slot-icon">📷</div>
+                  <div class="slot-label">
+                    Screenshot: Mason Navigator open<br />full screen on Android
+                  </div>
+                  <div class="slot-hint">
+                    Replace this placeholder with your photo
+                  </div>
+                </div>
+                <div class="tip">
+                  <div class="tip-icon">⚡</div>
+                  <p>
+                    Route links from the kiosk's QR code
+                    <strong>expire after 30 minutes</strong> — so scan and open
+                    them right away. The installed app itself never expires.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Done card -->
+      <div class="done-card">
+        <span class="done-icon">🎉</span>
+        <h2>You're all set!</h2>
+        <p>
+          Mason Navigator is now on your Home Screen. Scan any QR code from a
+          kiosk to instantly load your route.
+        </p>
+        <a href="index.html" class="done-btn">← Back to Navigator</a>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>Mason City Schools · Student Navigation Project · Sarvin Sukhe</p>
+      <a
+        href="https://docs.google.com/forms/d/e/1FAIpQLScU9ZAX9jwBVtQoPmGvyTtTld1GZZsP_Vv1fyH1LrGFXhdXjA/viewform?usp=publish-editor"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="mason-link"
+        >🐛 Report a Bug</a
+      >
+    </footer>
+
+    <script src="theme.js"></script>
+    <script>
+      // Scroll-triggered reveal for steps and done card
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) entry.target.classList.add("visible");
+          });
+        },
+        { threshold: 0.1, rootMargin: "0px 0px -40px 0px" },
+      );
+      document
+        .querySelectorAll(".step, .done-card")
+        .forEach((el) => observer.observe(el));
+    </script>
+  </body>
+</html>

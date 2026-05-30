@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en" data-theme="mason">
   <head>
     <meta charset="UTF-8" />
@@ -13,11 +13,29 @@
          All colors reference CSS variables from the theme system.
       ─────────────────────────────────────────────────────────── */
 
-      /* Single-column layout override for this page */
+      /* Two-column on desktop, single on mobile */
       .ios-container {
-        max-width: 680px;
+        max-width: 1200px;
         margin: 0 auto;
         padding: 24px 16px 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* Step pairs layout */
+      .steps-wrapper {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+      @media (min-width: 768px) {
+        .steps-wrapper {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      .step-pair {
         display: flex;
         flex-direction: column;
         gap: 16px;
@@ -179,9 +197,7 @@
         gap: 0 16px;
         opacity: 0;
         transform: translateY(20px);
-        transition:
-          opacity 0.45s ease,
-          transform 0.45s ease;
+        transition: opacity 0.45s ease, transform 0.45s ease;
       }
       .step.visible {
         opacity: 1;
@@ -295,9 +311,7 @@
         gap: 8px;
         padding: 28px 20px;
         cursor: pointer;
-        transition:
-          background 0.15s,
-          border-color 0.15s;
+        transition: background 0.15s, border-color 0.15s;
         min-height: 200px;
       }
       .screenshot-slot.portrait {
@@ -323,6 +337,17 @@
         font-size: 0.65rem;
         color: var(--text-dim);
         opacity: 0.5;
+      }
+
+      /* ── Actual screenshot images ────────────────────────────── */
+      .step-screenshot {
+        width: 100%;
+        max-width: 320px;
+        height: auto;
+        border-radius: var(--radius-card);
+        margin: 16px 0;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        display: block;
       }
 
       /* ── Tip callout ─────────────────────────────────────────── */
@@ -364,9 +389,7 @@
         box-shadow: 0 0 24px var(--accent-glow);
         opacity: 0;
         transform: translateY(20px);
-        transition:
-          opacity 0.5s ease 0.2s,
-          transform 0.5s ease 0.2s;
+        transition: opacity 0.5s ease 0.2s, transform 0.5s ease 0.2s;
       }
       .done-card.visible {
         opacity: 1;
@@ -418,9 +441,7 @@
         border-radius: var(--radius-btn);
         text-decoration: none;
         clip-path: var(--btn-clip);
-        transition:
-          box-shadow 0.15s,
-          background 0.15s;
+        transition: box-shadow 0.15s, background 0.15s;
         box-shadow: 0 0 12px var(--accent-glow);
       }
       .done-btn:hover {
@@ -588,202 +609,187 @@
 
       <div class="section-label">Step-by-step instructions</div>
 
-      <!-- Step 1 -->
-      <div class="step">
-        <div class="step-left">
-          <div class="step-num">1</div>
-          <div class="step-line"></div>
-        </div>
-        <div>
-          <div class="step-card">
-            <div class="step-title">
-              Open Safari &amp; navigate to the kiosk
+      <div class="steps-wrapper">
+        <!-- Step Pair 1: Steps 1 & 2 -->
+        <div class="step-pair">
+          <!-- Step 1 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">1</div>
+              <div class="step-line"></div>
             </div>
-            <div class="step-desc">
-              Open <strong>Safari</strong> on your iPhone and go to the Mason
-              Navigator URL. You can get this by scanning the QR code shown on
-              the kiosk display at school, or by typing the address directly.
-            </div>
-            <div
-              class="screenshot-slot portrait"
-              title="Replace with screenshot"
-            >
-              <div class="slot-icon">📷</div>
-              <div class="slot-label">
-                Screenshot: Safari address bar<br />showing the Mason Navigator
-                URL
+            <div>
+              <div class="step-card">
+                <div class="step-title">
+                  Open Safari &amp; navigate to the kiosk
+                </div>
+                <div class="step-desc">
+                  Open <strong>Safari</strong> on your iPhone and go to the
+                  Mason Navigator URL. You can get this by scanning the QR code
+                  shown on the kiosk display at school, or by typing the address
+                  directly.
+                </div>
+                <img
+                  src="screenshots/step1.png"
+                  alt="Safari address bar showing the Mason Navigator URL"
+                  class="step-screenshot"
+                />
               </div>
-              <div class="slot-hint">
-                Replace this placeholder with your photo
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">2</div>
+              <div class="step-line"></div>
+            </div>
+            <div>
+              <div class="step-card">
+                <div class="step-title">Tap the Share button</div>
+                <div class="step-desc">
+                  At the bottom of Safari, tap the
+                  <strong>Share button</strong> — it looks like a box with an
+                  arrow pointing up (↑). If you don't see the toolbar, scroll up
+                  slightly on the page to reveal it.
+                </div>
+                <img
+                  src="screenshots/step2.png"
+                  alt="Bottom Safari toolbar with Share button highlighted"
+                  class="step-screenshot"
+                />
+                <div class="tip">
+                  <div class="tip-icon">💡</div>
+                  <p>
+                    The Share button is the <strong>middle icon</strong> in the
+                    Safari bottom bar — a square with an upward arrow. It's not
+                    the same as the bookmark icon.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Step 2 -->
-      <div class="step">
-        <div class="step-left">
-          <div class="step-num">2</div>
-          <div class="step-line"></div>
-        </div>
-        <div>
-          <div class="step-card">
-            <div class="step-title">Tap the Share button</div>
-            <div class="step-desc">
-              At the bottom of Safari, tap the <strong>Share button</strong> —
-              it looks like a box with an arrow pointing up (↑). If you don't
-              see the toolbar, scroll up slightly on the page to reveal it.
+        <!-- Step Pair 2: Steps 3 & 4 -->
+        <div class="step-pair">
+          <!-- Step 3 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">3</div>
+              <div class="step-line"></div>
             </div>
-            <div class="screenshot-slot portrait">
-              <div class="slot-icon">📷</div>
-              <div class="slot-label">
-                Screenshot: Bottom Safari toolbar<br />with Share button
-                highlighted
+            <div>
+              <div class="step-card">
+                <div class="step-title">
+                  Hit the 3 dots "More" option then hit "Add to Home Screen"
+                </div>
+                <div class="step-desc">
+                  A menu will slide up from the bottom. Scroll down through the
+                  options until you see
+                  <strong>"Add to Home Screen"</strong> with a plus icon. Tap
+                  it.
+                </div>
+                <img
+                  src="screenshots/step3.png"
+                  alt="Share sheet with Add to Home Screen option visible"
+                  class="step-screenshot"
+                />
+                <div class="tip">
+                  <div class="tip-icon">💡</div>
+                  <p>
+                    This option is
+                    <strong>below the row of app icons</strong> in the share
+                    sheet. You may need to scroll down a bit — it's usually
+                    about halfway down the list.
+                  </p>
+                </div>
               </div>
-              <div class="slot-hint">
-                Replace this placeholder with your photo
-              </div>
-            </div>
-            <div class="tip">
-              <div class="tip-icon">💡</div>
-              <p>
-                The Share button is the <strong>middle icon</strong> in the
-                Safari bottom bar — a square with an upward arrow. It's not the
-                same as the bookmark icon.
-              </p>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Step 3 -->
-      <div class="step">
-        <div class="step-left">
-          <div class="step-num">3</div>
-          <div class="step-line"></div>
-        </div>
-        <div>
-          <div class="step-card">
-            <div class="step-title">
-              Hit the 3 dots "More" option then hit "Add to Home Screen"
+          <!-- Step 4 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">4</div>
+              <div class="step-line"></div>
             </div>
-            <div class="step-desc">
-              A menu will slide up from the bottom. Scroll down through the
-              options until you see <strong>"Add to Home Screen"</strong> with a
-              plus icon. Tap it.
-            </div>
-            <div class="screenshot-slot portrait">
-              <div class="slot-icon">📷</div>
-              <div class="slot-label">
-                Screenshot: Share sheet with<br />"Add to Home Screen" option
-                visible
-              </div>
-              <div class="slot-hint">
-                Replace this placeholder with your photo
-              </div>
-            </div>
-            <div class="tip">
-              <div class="tip-icon">💡</div>
-              <p>
-                This option is <strong>below the row of app icons</strong> in
-                the share sheet. You may need to scroll down a bit — it's
-                usually about halfway down the list.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 4 -->
-      <div class="step">
-        <div class="step-left">
-          <div class="step-num">4</div>
-          <div class="step-line"></div>
-        </div>
-        <div>
-          <div class="step-card">
-            <div class="step-title">Name it and tap "Add"</div>
-            <div class="step-desc">
-              A screen will appear letting you name the app. It should already
-              say <strong>"Mason Navigator"</strong> — leave it as-is or shorten
-              it if you prefer. Then tap <strong>Add</strong> in the top-right
-              corner.
-            </div>
-            <div class="screenshot-slot portrait">
-              <div class="slot-icon">📷</div>
-              <div class="slot-label">
-                Screenshot: "Add to Home Screen"<br />naming screen with Add
-                button
-              </div>
-              <div class="slot-hint">
-                Replace this placeholder with your photo
+            <div>
+              <div class="step-card">
+                <div class="step-title">Name it and tap "Add"</div>
+                <div class="step-desc">
+                  A screen will appear letting you name the app. It should
+                  already say <strong>"Mason Navigator"</strong> — leave it
+                  as-is or shorten it if you prefer. Then tap
+                  <strong>Add</strong> in the top-right corner.
+                </div>
+                <img
+                  src="screenshots/step4.png"
+                  alt="Add to Home Screen naming screen with Add button"
+                  class="step-screenshot"
+                />
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Step 5 -->
-      <div class="step">
-        <div class="step-left">
-          <div class="step-num">5</div>
-          <div class="step-line"></div>
-        </div>
-        <div>
-          <div class="step-card">
-            <div class="step-title">Find the icon on your Home Screen</div>
-            <div class="step-desc">
-              Mason Navigator will appear as an icon on your iPhone Home Screen
-              — just like a regular app. It'll have the school icon and the name
-              you chose. Press the Home button (or swipe up) to go back and find
-              it.
+        <!-- Step Pair 3: Steps 5 & 6 -->
+        <div class="step-pair">
+          <!-- Step 5 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">5</div>
+              <div class="step-line"></div>
             </div>
-            <div class="screenshot-slot portrait">
-              <div class="slot-icon">📷</div>
-              <div class="slot-label">
-                Screenshot: iPhone Home Screen<br />with Mason Navigator icon
-                visible
-              </div>
-              <div class="slot-hint">
-                Replace this placeholder with your photo
+            <div>
+              <div class="step-card">
+                <div class="step-title">Find the icon on your Home Screen</div>
+                <div class="step-desc">
+                  Mason Navigator will appear as an icon on your iPhone Home
+                  Screen — just like a regular app. It'll have the school icon
+                  and the name you chose. Press the Home button (or swipe up) to
+                  go back and find it.
+                </div>
+                <img
+                  src="screenshots/step5.png"
+                  alt="iPhone Home Screen with Mason Navigator icon visible"
+                  class="step-screenshot"
+                />
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Step 6 -->
-      <div class="step">
-        <div class="step-left">
-          <div class="step-num">6</div>
-          <div class="step-line"></div>
-        </div>
-        <div>
-          <div class="step-card">
-            <div class="step-title">Open it — it works like a real app!</div>
-            <div class="step-desc">
-              Tap the icon to launch Mason Navigator. It opens
-              <strong>full screen</strong>, with no Safari address bar or tabs —
-              just the app. Once loaded, it works even without a network
-              connection.
+          <!-- Step 6 -->
+          <div class="step">
+            <div class="step-left">
+              <div class="step-num">6</div>
+              <div class="step-line"></div>
             </div>
-            <div class="screenshot-slot portrait">
-              <div class="slot-icon">📷</div>
-              <div class="slot-label">
-                Screenshot: Mason Navigator open<br />full screen on iPhone
+            <div>
+              <div class="step-card">
+                <div class="step-title">
+                  Open it — it works like a real app!
+                </div>
+                <div class="step-desc">
+                  Tap the icon to launch Mason Navigator. It opens
+                  <strong>full screen</strong>, with no Safari address bar or
+                  tabs — just the app. Once loaded, it works even without a
+                  network connection.
+                </div>
+                <img
+                  src="screenshots/step6.png"
+                  alt="Mason Navigator open full screen on iPhone"
+                  class="step-screenshot"
+                />
+                <div class="tip">
+                  <div class="tip-icon">⚡</div>
+                  <p>
+                    Route links from the kiosk's QR code
+                    <strong>expire after 30 minutes</strong> — so scan and open
+                    them right away. The installed app itself never expires.
+                  </p>
+                </div>
               </div>
-              <div class="slot-hint">
-                Replace this placeholder with your photo
-              </div>
-            </div>
-            <div class="tip">
-              <div class="tip-icon">⚡</div>
-              <p>
-                Route links from the kiosk's QR code
-                <strong>expire after 30 minutes</strong> — so scan and open them
-                right away. The installed app itself never expires.
-              </p>
             </div>
           </div>
         </div>
