@@ -150,6 +150,47 @@
         />
         <datalist id="rooms"></datalist>
         <button id="goBtn">🗺️ Get Directions</button>
+
+        <label class="a11y-row">
+          <input type="checkbox" id="a11yToggle" />
+          <span>♿ Accessibility mode — read routes aloud</span>
+        </label>
+      </section>
+
+      <section class="card ai-card info-card">
+        <h2>🤖 AI Mode <span id="aiStatus" class="ai-status"></span></h2>
+        <p class="ai-hint">
+          Ask in plain English — e.g. <em>"how do I get from B210 to the gym?"</em>
+          The AI figures out the rooms; the route is computed by the navigator.
+        </p>
+        <textarea
+          id="aiQuery"
+          rows="2"
+          placeholder="Ask for directions… (Ctrl/⌘+Enter to send)"
+        ></textarea>
+        <button id="aiAskBtn" type="button">✨ Ask AI</button>
+        <div id="aiResult" class="ai-result"></div>
+
+        <details class="ai-advanced">
+          <summary>API key settings</summary>
+          <label for="aiKey">Groq API key (stored only in this browser)</label>
+          <input
+            id="aiKey"
+            type="password"
+            placeholder="gsk_..."
+            autocomplete="off"
+          />
+          <button id="aiKeySave" type="button">Save key</button>
+          <p class="ai-note">
+            Get a free key at
+            <a
+              href="https://console.groq.com/keys"
+              target="_blank"
+              rel="noopener noreferrer"
+              >console.groq.com/keys</a
+            >. AI mode locks itself automatically when the free quota runs out.
+          </p>
+        </details>
       </section>
 
       <section class="card directions-card">

@@ -7,6 +7,7 @@ import {
 } from "./schoolGraph.js";
 import { findShortestPath } from "./pathfinding.js";
 import { displayRooms } from "./displayRooms.js";
+import { GROQ_API_KEY, GROQ_MODEL, GROQ_ENDPOINT } from "./aiConfig.js";
 
 const POD_NAMES = {
   A_Pod: "A Pod",
@@ -672,12 +673,80 @@ function generateSteps(path, start, end) {
   return { steps, stairCount, floors };
 }
 
+// ── Breadcrumb landmark trail ────────────────────────────────────
+// A compact, scannable trail of the major landmarks a route passes
+// through — pods (color-coded), stairwells, the Commons and the front
+// office — so the walker can confirm at a glance they're on track.
+function breadcrumbForNode(node) {
+  if (STAIR_NODES.has(node)) {
+    if (node === "Front_Stair") return { icon: "🪜", label: "Front Office stairs" };
+    const lbl = node.replace("_Stair", "");
+    return { icon: "🪜", label: SECONDARY_STAIRS.has(node) ? `${lbl} connector stairs` : `${lbl} stairs` };
+  }
+  if (node === "Lobby_1" || node === "Lobby_2")
+    return { icon: "🏛️", label: "Front Office" };
+  if (/^Commons_\d$/.test(node)) return { icon: "🍴", label: "Commons" };
+  const key = getPodKey(node);
+  if (key) {
+    const c = POD_COLORS[key];
+    return {
+      icon: c ? "🎨" : "📍", // 🎨 only for color-coded pods; wings get a pin
+      label: POD_NAMES[key] || key.replace(/_/g, " "),
+      hex: c ? c.hex : null,
+    };
+  }
+  return null;
+}
+
+function buildBreadcrumb(path, start, end) {
+  const crumbs = [];
+  const push = (c) => {
+    if (!c) return;
+    const last = crumbs[crumbs.length - 1];
+    if (last && last.label === c.label) return; // collapse repeats
+    crumbs.push(c);
+  };
+  push({ icon: "🟢", label: start });
+  // Intermediate hub/stair nodes only (skip the endpoint room nodes).
+  for (let i = 1; i < path.length - 1; i++) push(breadcrumbForNode(path[i]));
+  push({ icon: "🏁", label: end });
+  return crumbs;
+}
+
+function renderBreadcrumb(crumbs) {
+  if (!crumbs || crumbs.length < 2) return "";
+  const items = crumbs
+    .map(
+      (c) =>
+        `<span class="crumb"${
+          c.hex ? ` style="--crumb:${c.hex}"` : ""
+        }><span class="crumb-icon">${c.icon}</span>${c.label}</span>`,
+    )
+    .join('<span class="crumb-sep">›</span>');
+  return `<div class="dir-breadcrumb" aria-label="Route landmarks">${items}</div>`;
+}
+
+// ── HTML → speakable plain text (for text-to-speech) ─────────────
+function stripHtml(html) {
+  if (!html) return "";
+  const tmp = document.createElement("div");
+  tmp.innerHTML = String(html).replace(/<br\s*\/?>/gi, ". ");
+  return (tmp.textContent || tmp.innerText || "").replace(/\s+/g, " ").trim();
+}
+
 // ── DOM ──────────────────────────────────────────────────────────
 const startInput = document.getElementById("start");
 const endInput = document.getElementById("end");
 const datalist = document.getElementById("rooms");
 const goBtn = document.getElementById("goBtn");
 const dirBox = document.getElementById("directions");
+const a11yToggle = document.getElementById("a11yToggle");
+const aiQuery = document.getElementById("aiQuery");
+const aiAskBtn = document.getElementById("aiAskBtn");
+const aiKeyInput = document.getElementById("aiKey");
+const aiKeySave = document.getElementById("aiKeySave");
+const aiResult = document.getElementById("aiResult");
+const aiStatus = document.getElementById("aiStatus");
 
 Object.entries(displayRooms)
   .sort(([a], [b]) =>
@@ -705,24 +774,49 @@ goBtn.addEventListener("click", go);
   }),
 );
 
+// Keeps the most recent route's steps around for text-to-speech.
+let lastSteps = [];
+
 function go() {
   const start = startInput.value.trim().toUpperCase();
   const end = endInput.value.trim().toUpperCase();
+  renderRoute(start, end);
+}
+
+// ── Route rendering ──────────────────────────────────────────────
+// Validates the two rooms, computes the path, and paints the directions
+// (breadcrumb + steps + share / read-aloud actions). Returns true on success.
+function renderRoute(start, end, { speak } = {}) {
+  stopSpeaking();
   dirBox.className = "directions-box";
   dirBox.innerHTML = "";
+  lastSteps = [];
 
-  if (!start || !end)
-    return showError("Please enter both a start room and destination.");
-  if (start === end) return showError("You're already there! 🎉");
-  if (!schoolGraph[start])
-    return showError(`Room "${start}" not found. Check the spelling.`);
-  if (!schoolGraph[end])
-    return showError(`Room "${end}" not found. Check the spelling.`);
+  if (!start || !end) {
+    showError("Please enter both a start room and destination.");
+    return false;
+  }
+  if (start === end) {
+    showError("You're already there! 🎉");
+    return false;
+  }
+  if (!schoolGraph[start]) {
+    showError(`Room "${start}" not found. Check the spelling.`);
+    return false;
+  }
+  if (!schoolGraph[end]) {
+    showError(`Room "${end}" not found. Check the spelling.`);
+    return false;
+  }
 
   const path = findShortestPath(schoolGraph, start, end);
-  if (!path) return showError("No route could be found between those rooms.");
+  if (!path) {
+    showError("No route could be found between those rooms.");
+    return false;
+  }
 
   const { steps, stairCount, floors } = generateSteps(path, start, end);
+  lastSteps = steps;
 
   const floorBadge =
     floors.length > 1
@@ -748,15 +842,21 @@ function go() {
   addPodKey(end);
 
   const legend = routePodKeys.size
-    ? `<div class="dir-legend" style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 2px;font-size:0.8em">${[
-        ...routePodKeys,
-      ]
+    ? `<div class="dir-legend">${[...routePodKeys]
         .map((k) => {
           const c = POD_COLORS[k];
-          return `<span style="display:inline-flex;align-items:center;gap:5px"><span style="width:11px;height:11px;border-radius:3px;background:${c.hex};display:inline-block;border:1px solid rgba(0,0,0,0.25)"></span>${POD_NAMES[k]} = ${c.name} walls</span>`;
+          return `<span class="legend-item"><span class="legend-dot" style="background:${c.hex}"></span>${POD_NAMES[k]} = ${c.name} walls</span>`;
         })
         .join("")}</div>`
     : "";
+
+  const breadcrumb = renderBreadcrumb(buildBreadcrumb(path, start, end));
+
+  const actions = `
+    <div class="dir-actions">
+      <button type="button" class="dir-action" id="readBtn">🔊 Read aloud</button>
+      <button type="button" class="dir-action" id="shareBtn">🔗 Share route</button>
+    </div>`;
 
   let html = `
     <div class="dir-header">
@@ -765,6 +865,8 @@ function go() {
       }</strong> → <strong>${displayRooms[end] || end}</strong></div>
       <div class="dir-badges">${floorBadge}${stairBadge}</div>
       ${legend}
+      ${breadcrumb}
+      ${actions}
     </div>
     <ol class="dir-steps">`;
 
@@ -782,9 +884,403 @@ function go() {
   html += `</ol>`;
   dirBox.className = "directions-box dir-success";
   dirBox.innerHTML = html;
+
+  // Wire the contextual action buttons (re-created on every render).
+  dirBox.querySelector("#readBtn")?.addEventListener("click", toggleSpeaking);
+  dirBox
+    .querySelector("#shareBtn")
+    ?.addEventListener("click", () => shareRoute(start, end));
+
+  // Reflect the chosen route in the URL so it can be shared / bookmarked.
+  updateUrl(start, end);
+
+  // Auto-read aloud when accessibility mode is on (or when asked explicitly).
+  if (speak ?? accessibilityOn()) speakRoute();
+
+  return true;
 }
 
 function showError(msg) {
+  stopSpeaking();
   dirBox.className = "directions-box dir-error";
   dirBox.innerHTML = `<p>⚠️ ${msg}</p>`;
 }
+
+// ── Accessibility mode + text-to-speech ──────────────────────────
+function accessibilityOn() {
+  return localStorage.getItem("a11yMode") === "1";
+}
+
+function applyAccessibility(on) {
+  document.body.classList.toggle("a11y", on);
+  if (a11yToggle) a11yToggle.checked = on;
+}
+
+if (a11yToggle) {
+  applyAccessibility(accessibilityOn());
+  a11yToggle.addEventListener("change", () => {
+    localStorage.setItem("a11yMode", a11yToggle.checked ? "1" : "0");
+    applyAccessibility(a11yToggle.checked);
+    if (a11yToggle.checked && lastSteps.length) speakRoute();
+    else if (!a11yToggle.checked) stopSpeaking();
+  });
+}
+
+const ttsSupported = "speechSynthesis" in window;
+
+function speakRoute() {
+  if (!ttsSupported || !lastSteps.length) return;
+  window.speechSynthesis.cancel();
+  const text = lastSteps
+    .map((s, i) => {
+      const main = stripHtml(s.text);
+      const sub = s.sub ? `. ${stripHtml(s.sub)}` : "";
+      return `Step ${i + 1}. ${main}${sub}`;
+    })
+    .join(". ");
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 0.97;
+  u.onend = () => setReadButton(false);
+  u.onerror = () => setReadButton(false);
+  window.speechSynthesis.speak(u);
+  setReadButton(true);
+}
+
+function stopSpeaking() {
+  if (ttsSupported) window.speechSynthesis.cancel();
+  setReadButton(false);
+}
+
+function toggleSpeaking() {
+  if (!ttsSupported) {
+    toast("Text-to-speech isn't supported in this browser.");
+    return;
+  }
+  if (window.speechSynthesis.speaking) stopSpeaking();
+  else speakRoute();
+}
+
+function setReadButton(speaking) {
+  const btn = dirBox.querySelector("#readBtn");
+  if (!btn) return;
+  btn.textContent = speaking ? "⏹ Stop reading" : "🔊 Read aloud";
+  btn.classList.toggle("active", speaking);
+}
+
+// ── Route sharing ────────────────────────────────────────────────
+function buildShareUrl(start, end) {
+  const u = new URL(window.location.href);
+  u.search = `?from=${encodeURIComponent(start)}&to=${encodeURIComponent(end)}`;
+  u.hash = "";
+  return u.toString();
+}
+
+function updateUrl(start, end) {
+  try {
+    history.replaceState(null, "", buildShareUrl(start, end));
+  } catch {
+    /* replaceState can throw on file:// — non-fatal */
+  }
+}
+
+async function shareRoute(start, end) {
+  const url = buildShareUrl(start, end);
+  const label = `${displayRooms[start] || start} → ${displayRooms[end] || end}`;
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: "Mason Navigator route",
+        text: `Walking directions: ${label}`,
+        url,
+      });
+      return;
+    } catch {
+      /* user cancelled or share failed — fall through to copy */
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    toast("Route link copied to clipboard!");
+  } catch {
+    toast(url);
+  }
+}
+
+// ── Tiny toast ───────────────────────────────────────────────────
+let toastTimer = null;
+function toast(msg) {
+  let el = document.getElementById("toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "toast";
+    el.className = "toast";
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+}
+
+// ── AI mode (Groq) ───────────────────────────────────────────────
+function getGroqKey() {
+  return (localStorage.getItem("groqApiKey") || GROQ_API_KEY || "").trim();
+}
+
+// Lock state lives in localStorage as { until: <ms epoch>, reason: <text> }.
+function getAiLock() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("groqLock") || "null");
+    if (raw && raw.until && Date.now() < raw.until) return raw;
+  } catch {
+    /* corrupt value — ignore */
+  }
+  localStorage.removeItem("groqLock");
+  return null;
+}
+
+function setAiLock(until, reason) {
+  localStorage.setItem("groqLock", JSON.stringify({ until, reason }));
+  refreshAiUI();
+}
+
+function startOfNextDay() {
+  const d = new Date();
+  d.setHours(24, 0, 5, 0); // a few seconds past local midnight
+  return d.getTime();
+}
+
+// Decide how long to lock based on the 429 response. A daily-quota hit locks
+// until tomorrow; a short per-minute rate limit locks only briefly.
+function lockFromRateLimit(res, body) {
+  const msg = (body?.error?.message || "").toLowerCase();
+  const retryAfter = parseFloat(res.headers.get("retry-after")) || 0;
+  if (msg.includes("day") || msg.includes("daily") || retryAfter > 3600) {
+    setAiLock(startOfNextDay(), "Daily free Groq quota used up");
+  } else {
+    const ms = retryAfter ? retryAfter * 1000 : 60000;
+    setAiLock(Date.now() + ms, "Groq rate limit — give it a moment");
+  }
+}
+
+function fmtUnlock(ts) {
+  const d = new Date(ts);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return sameDay
+    ? `~${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`
+    : d.toLocaleString([], {
+        weekday: "short",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+}
+
+// Reflect lock / key state in the AI panel.
+function refreshAiUI() {
+  if (!aiAskBtn) return;
+  const lock = getAiLock();
+  if (lock) {
+    aiAskBtn.disabled = true;
+    if (aiQuery) aiQuery.disabled = true;
+    if (aiStatus) {
+      aiStatus.textContent = `🔒 Locked`;
+      aiStatus.className = "ai-status locked";
+      aiStatus.title = `${lock.reason}. Unlocks ${fmtUnlock(lock.until)}.`;
+    }
+  } else {
+    aiAskBtn.disabled = false;
+    if (aiQuery) aiQuery.disabled = false;
+    if (aiStatus) {
+      const ready = !!getGroqKey();
+      aiStatus.textContent = ready ? "● Ready" : "○ No key";
+      aiStatus.className = `ai-status ${ready ? "ready" : ""}`;
+      aiStatus.title = ready
+        ? "AI mode is ready."
+        : "Add a free Groq API key in API key settings to enable AI mode.";
+    }
+  }
+}
+
+// Build a compact catalog of the named landmarks so the model can map words
+// like "gym" or "dream center" to real room codes.
+function buildRoomCatalog() {
+  return Object.entries(displayRooms)
+    .filter(([code, label]) => /[ –-]/.test(label) && label.toUpperCase() !== code)
+    .map(([code, label]) => `${code} = ${label.replace(/\s*–\s*/g, " - ")}`)
+    .join("\n");
+}
+
+const AI_SYSTEM_PROMPT = `You translate a student's plain-English request into a start room and a destination room at Mason High School. The app then computes the actual walking route — you do NOT describe directions yourself.
+
+Reply with ONLY a JSON object, no prose:
+{"start": "<ROOM CODE or empty string>", "end": "<ROOM CODE or empty string>", "note": "<one short friendly sentence>"}
+
+Room codes look like A115, B210, C305, Z101, D123. The first digit of the number is the floor (1xx = floor 1, 2xx = floor 2, 3xx = floor 3). Use a named location's code when the user names a place (e.g. "the gym", "front desk", "dream center"). If you cannot identify a room, set it to "" and explain in note. Never invent codes that are not real.
+
+Named locations:
+`;
+
+async function callGroq(query) {
+  const key = getGroqKey();
+  if (!key) throw { type: "nokey" };
+
+  const res = await fetch(GROQ_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      temperature: 0.1,
+      max_tokens: 180,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: AI_SYSTEM_PROMPT + buildRoomCatalog() },
+        { role: "user", content: query },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    let body = null;
+    try {
+      body = await res.json();
+    } catch {
+      /* no JSON body */
+    }
+    if (res.status === 429) {
+      lockFromRateLimit(res, body);
+      throw { type: "locked" };
+    }
+    if (res.status === 401 || res.status === 403) throw { type: "badkey" };
+    throw { type: "http", status: res.status, body };
+  }
+
+  const data = await res.json();
+  const content = data.choices?.[0]?.message?.content || "{}";
+  try {
+    return JSON.parse(content);
+  } catch {
+    throw { type: "parse", content };
+  }
+}
+
+async function askAI() {
+  if (!aiResult) return;
+  if (getAiLock()) {
+    refreshAiUI();
+    const lock = getAiLock();
+    aiResult.className = "ai-result warn";
+    aiResult.innerHTML = `🔒 AI mode is locked — ${lock.reason}. It unlocks ${fmtUnlock(
+      lock.until,
+    )}. You can still use the room boxes above.`;
+    return;
+  }
+
+  const query = (aiQuery?.value || "").trim();
+  if (!query) {
+    aiResult.className = "ai-result warn";
+    aiResult.textContent = "Type a question first, e.g. “how do I get from B210 to the gym?”";
+    return;
+  }
+
+  if (!getGroqKey()) {
+    aiResult.className = "ai-result warn";
+    aiResult.innerHTML =
+      "No Groq API key set. Open <strong>API key settings</strong> below and paste a free key from console.groq.com/keys.";
+    document.querySelector(".ai-advanced")?.setAttribute("open", "");
+    return;
+  }
+
+  aiAskBtn.disabled = true;
+  aiResult.className = "ai-result loading";
+  aiResult.textContent = "🤔 Thinking…";
+
+  try {
+    const out = await callGroq(query);
+    const start = String(out.start || "").trim().toUpperCase();
+    const end = String(out.end || "").trim().toUpperCase();
+
+    if (!start || !end) {
+      aiResult.className = "ai-result warn";
+      aiResult.textContent =
+        out.note ||
+        "I couldn't tell which rooms you meant. Try naming the room numbers, e.g. A115 to B210.";
+      return;
+    }
+    if (!schoolGraph[start] || !schoolGraph[end]) {
+      aiResult.className = "ai-result warn";
+      aiResult.innerHTML = `I read that as <strong>${start} → ${end}</strong>, but ${
+        !schoolGraph[start] ? start : end
+      } isn't a room I know. Try a different name or use the boxes above.`;
+      return;
+    }
+
+    startInput.value = start;
+    endInput.value = end;
+    aiResult.className = "ai-result ok";
+    aiResult.innerHTML = `✨ ${
+      out.note ? stripHtml(out.note) + " " : ""
+    }Routing <strong>${displayRooms[start] || start}</strong> → <strong>${
+      displayRooms[end] || end
+    }</strong>…`;
+    renderRoute(start, end);
+    dirBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } catch (err) {
+    if (err.type === "locked") {
+      const lock = getAiLock();
+      aiResult.className = "ai-result warn";
+      aiResult.innerHTML = `🔒 Out of free Groq capacity — ${
+        lock?.reason || "rate limited"
+      }. AI mode is locked until ${fmtUnlock(
+        lock?.until || Date.now(),
+      )}. The room boxes above still work.`;
+    } else if (err.type === "nokey") {
+      aiResult.className = "ai-result warn";
+      aiResult.textContent = "No Groq API key set.";
+    } else if (err.type === "badkey") {
+      aiResult.className = "ai-result warn";
+      aiResult.textContent =
+        "That Groq API key was rejected. Double-check it in API key settings.";
+    } else {
+      aiResult.className = "ai-result warn";
+      aiResult.textContent =
+        "AI request failed. Check your connection and try again.";
+    }
+  } finally {
+    refreshAiUI();
+  }
+}
+
+if (aiAskBtn) {
+  aiAskBtn.addEventListener("click", askAI);
+  aiQuery?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) askAI();
+  });
+}
+
+if (aiKeyInput) {
+  aiKeyInput.value = localStorage.getItem("groqApiKey") || "";
+  aiKeySave?.addEventListener("click", () => {
+    const v = aiKeyInput.value.trim();
+    if (v) localStorage.setItem("groqApiKey", v);
+    else localStorage.removeItem("groqApiKey");
+    toast(v ? "Groq API key saved in this browser." : "Groq API key cleared.");
+    refreshAiUI();
+  });
+}
+
+refreshAiUI();
+
+// ── Deep-link: run a shared route from ?from=&to= on load ────────
+(function loadFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const from = (params.get("from") || "").trim().toUpperCase();
+  const to = (params.get("to") || "").trim().toUpperCase();
+  if (from && to) {
+    startInput.value = from;
+    endInput.value = to;
+    renderRoute(from, to);
+  }
+})();
