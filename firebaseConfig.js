@@ -1,36 +1,21 @@
-// firebaseConfig.js — OPTIONAL Google Firebase backend.
-//
-// The app runs fully without Firebase: route sharing falls back to long
-// ?stops= URLs (+ QR codes), and favorites are stored locally. That keeps
-// the GitHub Pages deployment working with zero setup.
-//
-// ── ENABLE THE FREE CLOUD BACKEND (short share links) ────────────
-// 1. Create a free project at https://console.firebase.google.com
-// 2. Add a Web App, then copy its config values below.
-// 3. In the console, enable Firestore Database (start in production mode)
-//    and add this rule so anyone can create/read shared routes but not edit
-//    or delete them:
-//
-//      rules_version = '2';
-//      service cloud.firestore {
-//        match /databases/{db}/documents {
-//          match /routes/{id} {
-//            allow read, create: if true;
-//            allow update, delete: if false;
-//          }
-//        }
-//      }
-//
-// NOTE: the Web "apiKey" below is NOT a secret — Firebase web keys are safe to
-// ship in client code; access is controlled by the Firestore rules above.
-export const FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: "",
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyC42CMewFxDynOFbUy-jIPilQVKcJa39HE",
+  authDomain: "mason-navigator.firebaseapp.com",
+  projectId: "mason-navigator",
+  storageBucket: "mason-navigator.firebasestorage.app",
+  messagingSenderId: "87865169627",
+  appId: "1:87865169627:web:41eb9fd7c866554ee69efe",
+  measurementId: "G-PVYZSCC3CT",
 };
 
-// Which Firebase JS SDK version to lazy-load from gstatic when cloud is on.
-export const FIREBASE_SDK_VERSION = "10.12.2";
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);

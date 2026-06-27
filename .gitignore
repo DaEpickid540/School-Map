@@ -67,3 +67,47 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# ──── SENSITIVE DATA ────
+# Firebase & API configs
+firebaseConfig.js
+aiConfig.js
+firebase-key.json
+service-account-key.json
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# API keys & credentials
+*.key
+*.pem
+*.pub
+*credentials*
+*secret*
+*token*
+*.crt
+
+# AWS, Google Cloud, Azure configs
+.aws/
+.gcp/
+.azure/
+service-account*.json
+
+# OAuth & API tokens
+oauth-token*
+api-key*
+.apikey
+
+# IDE secrets
+.vscode/settings.json
+.idea/workspace.xml
+
+# OS & editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
