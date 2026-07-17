@@ -1,4 +1,5 @@
 {
+  "//": "Firestore rules for the shared default DB are owned by BookWare/mysite/firestore.rules (the `routes` collection is defined there). Do NOT add a firestore block here — deploying it would overwrite the shared ruleset.",
   "hosting": {
     "target": "mason-navigator",
     "public": ".",
@@ -7,11 +8,5 @@
       "**/.*",
       "**/node_modules/**"
     ]
-  },
-  "firestore": {
-    "database": "mason-navigator",
-    "location": "us-central1",
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
   }
 }
