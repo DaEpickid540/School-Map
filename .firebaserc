@@ -1,5 +1,12 @@
 {
   "projects": {
-    "default": "mason-navigator"
+    "default": "school-suite-652d8"
+  },
+  "targets": {
+    "school-suite-652d8": {
+      "hosting": {
+        "mason-navigator": ["mason-navigator-app"]
+      }
+    }
   }
 }

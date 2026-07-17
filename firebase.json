@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "target": "mason-navigator",
     "public": ".",
     "ignore": [
       "firebase.json",
@@ -8,7 +9,7 @@
     ]
   },
   "firestore": {
-    "database": "(default)",
+    "database": "mason-navigator",
     "location": "us-central1",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
