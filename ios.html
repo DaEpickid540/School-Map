@@ -31,19 +31,12 @@
       }
       @media (min-width: 768px) {
         .steps-wrapper {
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: repeat(2, 1fr);
         }
       }
 
       .step-pair {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 24px;
-      }
-      @media (max-width: 768px) {
-        .step-pair {
-          grid-template-columns: 1fr;
-        }
+        display: contents;
       }
 
       /* ── Hero banner ─────────────────────────────────────────── */
