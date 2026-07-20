@@ -36,9 +36,14 @@
       }
 
       .step-pair {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+      @media (max-width: 768px) {
+        .step-pair {
+          grid-template-columns: 1fr;
+        }
       }
 
       /* ── Hero banner ─────────────────────────────────────────── */

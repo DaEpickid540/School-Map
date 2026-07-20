@@ -36,9 +36,14 @@
       }
 
       .step-pair {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+      @media (max-width: 768px) {
+        .step-pair {
+          grid-template-columns: 1fr;
+        }
       }
 
       /* ── Hero banner ─────────────────────────────────────────── */
@@ -495,34 +500,43 @@
       </nav>
     </header>
 
-    <!-- Hero -->
-    <div class="android-hero">
-      <span class="android-hero-icon">📱</span>
-      <div class="android-hero-badge">📱 Android Install Guide</div>
-      <h1>Add to Your<br />Home Screen</h1>
-      <p>
-        Get instant access to your route — works with any Android browser. Saves
-        offline.
-      </p>
-    </div>
-
     <main class="android-container">
-      <!-- Before you start -->
-      <div class="prereq">
-        <div class="prereq-icon">ℹ️</div>
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 32px; text-align: center; padding: 40px 20px;">
         <div>
-          <div class="prereq-title">Before You Start</div>
-          <p>
-            This works on any Android browser —
-            <strong>Chrome, Firefox, Edge</strong>, or any other. Make sure
-            you're connected to Wi-Fi when you first install it.
-          </p>
+          <h1 style="font-size: 2.5rem; margin-bottom: 16px; font-family: var(--display); letter-spacing: 0.08em;">Get Mason Navigator</h1>
+          <p style="font-family: var(--mono); color: var(--text-dim); font-size: 1rem; line-height: 1.6; max-width: 400px; margin: 0 auto;">Download the Android app to navigate your school with offline access</p>
         </div>
+
+        <a
+          href="https://drive.google.com/file/d/1elcWMgvGFxbWKgJgfZsJL1RnFXiW6EjQ/view?usp=sharing"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--accent);
+            color: #fff;
+            font-family: var(--display);
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            padding: 20px 48px;
+            border-radius: 8px;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 0 20px var(--accent-glow);
+            transition: all 0.2s;
+          "
+          onmouseover="this.style.transform='scale(1.05)'"
+          onmouseout="this.style.transform='scale(1)'"
+        >
+          📱 Download for Android
+        </a>
       </div>
 
-      <div class="section-label">Step-by-step instructions</div>
-
-      <div class="steps-wrapper">
+      <div class="steps-wrapper" style="display: none;">
         <!-- Step Pair 1: Steps 1 & 2 -->
         <div class="step-pair">
           <!-- Step 1 -->
