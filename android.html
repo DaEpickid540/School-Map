@@ -6,7 +6,7 @@
     <title>Install on Android — Mason Navigator</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="icon" type="image/png" href="icons/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="icons/favicon.svg" />
     <style>
       /* ── Android guide page additions ───────────────────────────────
          Only layout/component styles not already in style.css.
@@ -472,45 +472,26 @@
 
   <body>
     <!-- Header with nav -->
-    <header class="header" style="border-bottom: 1px solid var(--border)">
-      <nav
-        class="nav"
-        style="
-          max-width: 1200px;
-          margin: 0 auto;
-          display: flex;
-          align-items: center;
-          gap: 24px;
-          padding: 16px;
-          font-size: 0.85rem;
-        "
-      >
-        <a
-          href="index.html"
-          class="nav-link"
-          style="
-            text-decoration: none;
-            color: var(--text-dim);
-            transition: color 0.2s;
-          "
-          >← Navigator</a
-        >
-        <a
-          href="ios.html"
-          class="nav-link"
-          style="
-            text-decoration: none;
-            color: var(--text-dim);
-            transition: color 0.2s;
-          "
-          >iPhone Install</a
-        >
-        <a
-          href="android.html"
-          class="nav-link active"
-          style="text-decoration: none; color: var(--accent); font-weight: 700"
-          >Android Install</a
-        >
+    <header class="topbar" style="border-bottom: 2px solid var(--accent)">
+      <div class="topbar-top">
+        <div class="header-logo">
+          <svg class="logo-icon" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="40" fill="currentColor" stroke="currentColor" stroke-width="3" opacity="0.3"/>
+            <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="3"/>
+            <path d="M50 20 L55 45 L80 50 L55 55 L50 80 L45 55 L20 50 L45 45 Z" fill="currentColor"/>
+            <circle cx="50" cy="50" r="6" fill="currentColor"/>
+          </svg>
+          <div>
+            <h1>Mason Navigator</h1>
+            <p>Find the fastest route to any classroom.</p>
+          </div>
+        </div>
+      </div>
+      <nav class="navbar">
+        <a href="index.html" class="nav-link">Navigate MHS</a>
+        <a href="why.html" class="nav-link">Why</a>
+        <a href="ios.html" class="nav-link">iPhone Install</a>
+        <a href="android.html" class="nav-link active">Android Install</a>
       </nav>
     </header>
 

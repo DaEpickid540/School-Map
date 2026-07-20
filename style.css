@@ -97,6 +97,19 @@ body {
   margin-top: 2px;
 }
 
+/* ── Header Logo ──────────────────────────────────────────────── */
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.logo-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
 /* ── Navbar ──────────────────────────────────────────────────── */
 .navbar {
   display: flex;
