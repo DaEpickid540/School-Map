@@ -798,11 +798,16 @@ function buildMultiLeg(stops) {
 }
 
 // ── HTML → speakable plain text (for text-to-speech) ─────────────
+// Parsed with DOMParser: a document that never loads images or runs
+// handlers. (A detached <div>'s innerHTML still fetches <img src> and fires
+// onerror, and this also receives AI-generated text.)
 function stripHtml(html) {
   if (!html) return "";
-  const tmp = document.createElement("div");
-  tmp.innerHTML = String(html).replace(/<br\s*\/?>/gi, ". ");
-  return (tmp.textContent || tmp.innerText || "").replace(/\s+/g, " ").trim();
+  const doc = new DOMParser().parseFromString(
+    String(html).replace(/<br\s*\/?>/gi, ". "),
+    "text/html",
+  );
+  return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
 }
 
 // ── DOM ──────────────────────────────────────────────────────────
@@ -881,8 +886,15 @@ function renderRoute(stops, { speak } = {}) {
 
   // Normalise: uppercase, then drop blank intermediate stops.
   stops = (Array.isArray(stops) ? stops : [stops])
-    .map((s) => (s || "").trim().toUpperCase())
+    .map((s) => String(s ?? "").trim().toUpperCase())
     .filter((s, i, arr) => i === 0 || i === arr.length - 1 || s !== "");
+
+  // Stops can arrive from the URL or a shared cloud route, i.e. from anyone.
+  // Cap their number and length before they go anywhere near the page.
+  if (stops.length > MAX_WAYPOINTS + 2 || stops.some((s) => s.length > MAX_STOP_LENGTH)) {
+    showError("That route has too many stops or an unrecognised room name.");
+    return false;
+  }
 
   if (stops.length < 2 || !stops[0] || !stops[stops.length - 1]) {
     showError("Please enter both a start room and destination.");
@@ -994,10 +1006,14 @@ function renderRoute(stops, { speak } = {}) {
   return true;
 }
 
+// Error messages echo user-supplied room names (from the URL or a shared
+// route), so they're set as text, never parsed as HTML.
 function showError(msg) {
   stopSpeaking();
   dirBox.className = "directions-box dir-error";
-  dirBox.innerHTML = `<p>⚠️ ${msg}</p>`;
+  const p = document.createElement("p");
+  p.textContent = `⚠️ ${msg}`;
+  dirBox.replaceChildren(p);
 }
 
 // ── Accessibility mode + text-to-speech ──────────────────────────
@@ -1226,9 +1242,12 @@ function escapeAttr(s) {
   return String(s == null ? "" : s)
     .replace(/&/g, "&amp;")
     .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 }
+// Same escaping works for text content too.
+const escapeHtml = escapeAttr;
 
 // ── Generic modal ────────────────────────────────────────────────
 function openModal(id, innerHtml) {
@@ -1261,6 +1280,8 @@ function escClose(e) {
 
 // ── Multi-leg waypoint inputs ────────────────────────────────────
 const MAX_WAYPOINTS = 8;
+// Longest room key is well under this ("Front_Stair"); anything longer is junk.
+const MAX_STOP_LENGTH = 24;
 
 function addWaypoint(value = "") {
   if (!waypointWrap) return;
@@ -1599,7 +1620,7 @@ async function askAI() {
     refreshAiUI();
     const lock = getAiLock();
     aiResult.className = "ai-result warn";
-    aiResult.innerHTML = `🔒 AI mode is locked — ${lock.reason}. It unlocks ${fmtUnlock(
+    aiResult.innerHTML = `🔒 AI mode is locked — ${escapeHtml(lock.reason)}. It unlocks ${fmtUnlock(
       lock.until,
     )}. You can still use the room boxes above.`;
     return;
@@ -1638,16 +1659,17 @@ async function askAI() {
     }
     if (!schoolGraph[start] || !schoolGraph[end]) {
       aiResult.className = "ai-result warn";
-      aiResult.innerHTML = `I read that as <strong>${start} → ${end}</strong>, but ${
+      // start/end are model output, which the user's prompt can steer.
+      aiResult.innerHTML = `I read that as <strong>${escapeHtml(start)} → ${escapeHtml(end)}</strong>, but ${escapeHtml(
         !schoolGraph[start] ? start : end
-      } isn't a room I know. Try a different name or use the boxes above.`;
+      )} isn't a room I know. Try a different name or use the boxes above.`;
       return;
     }
 
     setStopsInputs([start, end]);
     aiResult.className = "ai-result ok";
     aiResult.innerHTML = `✨ ${
-      out.note ? stripHtml(out.note) + " " : ""
+      out.note ? escapeHtml(stripHtml(out.note)) + " " : ""
     }Routing <strong>${displayRooms[start] || start}</strong> → <strong>${
       displayRooms[end] || end
     }</strong>…`;
@@ -1657,9 +1679,9 @@ async function askAI() {
     if (err.type === "locked") {
       const lock = getAiLock();
       aiResult.className = "ai-result warn";
-      aiResult.innerHTML = `🔒 Out of free Groq capacity — ${
+      aiResult.innerHTML = `🔒 Out of free Groq capacity — ${escapeHtml(
         lock?.reason || "rate limited"
-      }. AI mode is locked until ${fmtUnlock(
+      )}. AI mode is locked until ${fmtUnlock(
         lock?.until || Date.now(),
       )}. The room boxes above still work.`;
     } else if (err.type === "nokey") {

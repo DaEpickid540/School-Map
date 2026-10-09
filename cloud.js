@@ -34,22 +34,40 @@ async function ctx() {
   return _ctx;
 }
 
+// Shared routes are publicly writable, so anything read back is untrusted.
+// These limits match the `routes` rule in BookWare/mysite/firestore.rules.
+const MAX_STOPS = 10;
+const STOP_RE = /^[A-Za-z0-9_-]{1,24}$/;
+const MAX_NAME = 40;
+const ID_RE = /^[A-Za-z0-9]{1,40}$/;
+
+export function cleanStops(stops) {
+  if (!Array.isArray(stops) || stops.length < 2 || stops.length > MAX_STOPS) return null;
+  const out = stops.map((s) => String(s ?? "").trim());
+  return out.every((s) => STOP_RE.test(s)) ? out : null;
+}
+
 // Store a shared route and return its short document id (used as ?r=<id>).
 export async function publishRoute(stops, name) {
+  const clean = cleanStops(stops);
+  if (!clean) throw new Error("invalid-route");
   const { db, fs } = await ctx();
   const ref = await fs.addDoc(fs.collection(db, "routes"), {
-    stops,
-    name: name || "",
+    stops: clean,
+    name: String(name || "").slice(0, MAX_NAME),
     created: fs.serverTimestamp(),
   });
   return ref.id;
 }
 
-// Look up a shared route by id. Returns { stops, name } or null if missing.
+// Look up a shared route by id. Returns { stops, name } or null if missing
+// or malformed.
 export async function fetchRoute(id) {
+  if (!ID_RE.test(String(id || ""))) return null;
   const { db, fs } = await ctx();
   const snap = await fs.getDoc(fs.doc(db, "routes", id));
   if (!snap.exists()) return null;
   const data = snap.data() || {};
-  return Array.isArray(data.stops) ? { stops: data.stops, name: data.name || "" } : null;
+  const stops = cleanStops(data.stops);
+  return stops ? { stops, name: String(data.name || "").slice(0, MAX_NAME) } : null;
 }
